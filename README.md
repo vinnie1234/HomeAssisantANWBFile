@@ -38,8 +38,11 @@ Sensors only exist for the incident types you selected.
 
 A dashboard card that works like anwb.nl/verkeer: a list grouped per road next to a map.
 
+Add it via **Add card** (it is listed under *Custom cards* as **ANWB File**, with a visual editor), or in YAML:
+
 ```yaml
 type: custom:anwb-file-map-card
+show_map: true  # false = list only, without the map (default true)
 radius_km: 20   # initial map view: your Home Assistant location + this radius (default 20)
 height: 640     # card height in px on wide screens (default 640)
 ```
@@ -62,7 +65,7 @@ geo_location_sources:
   - anwb_file
 ```
 
-The map in the ANWB File card uses OpenStreetMap tiles (Leaflet is bundled, see `www/LEAFLET-LICENSE.txt`).
+The map in the ANWB File card uses Esri basemap tiles (no API key needed) and a bundled copy of Leaflet (see `www/LEAFLET-LICENSE.txt`).
 
 ## Installation
 

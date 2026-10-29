@@ -49,6 +49,10 @@ const STYLE = `
   .wrap:not(.wide) .panel { order: 2; }
   .wrap:not(.wide) .list { max-height: 560px; }
   .wide .panel { border-right: 1px solid var(--divider-color); }
+  .wrap.nomap { grid-template-columns: 1fr; height: auto; }
+  .nomap .panel { border-right: 0; }
+  .nomap .list { max-height: var(--card-height, 640px); }
+  .nomap .mapbox, .nomap .show-map { display: none; }
 
   .toolbar { padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 10px;
     border-bottom: 1px solid var(--divider-color); background: var(--card-background-color); }
@@ -112,8 +116,6 @@ const STYLE = `
   .mapbox { position: relative; isolation: isolate; z-index: 0; height: 380px; background: var(--secondary-background-color); }
   .wide .mapbox { height: auto; }
   .map { position: absolute; inset: 0; }
-  .leaflet-tile-pane { filter: saturate(.75); }
-  .mapbox.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.7); }
   .map-actions { position: absolute; top: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 6px; }
   .map-actions button { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 18px;
     border: 0; font: inherit; font-size: 12.5px; font-weight: 600; color: #1b1b1b; background: rgba(255,255,255,.95);
@@ -200,7 +202,7 @@ class AnwbFileCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = { radius_km: 20, height: 640, ...config };
+    this._config = { show_map: true, radius_km: 20, height: 640, ...config };
     this.style.setProperty("--card-height", `${this._config.height}px`);
     this._build();
   }
@@ -210,7 +212,11 @@ class AnwbFileCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return {};
+    return { show_map: true };
+  }
+
+  static getConfigElement() {
+    return document.createElement("anwb-file-map-card-editor");
   }
 
   set hass(hass) {
@@ -289,6 +295,12 @@ class AnwbFileCard extends HTMLElement {
   /* ---------- skeleton ---------- */
 
   _build() {
+    // setConfig can run again on an existing card (editor, card picker): start clean
+    this._mapObserver?.disconnect();
+    this._map?.remove();
+    this._map = null;
+    this._tiles = this._labels = null;
+    this._fitted = false;
     this.shadowRoot.innerHTML = `
       <style>${STYLE}</style>
       <ha-card>
@@ -322,6 +334,7 @@ class AnwbFileCard extends HTMLElement {
       </ha-card>`;
     const $ = (selector) => this.shadowRoot.querySelector(selector);
     this._root = $(".wrap");
+    this._root.classList.toggle("nomap", !this._config.show_map);
     this._root.classList.toggle("wide", this.clientWidth >= WIDE_BREAKPOINT);
 
     const input = $(".search input");
@@ -362,7 +375,7 @@ class AnwbFileCard extends HTMLElement {
 
     this._renderToolbar();
     this._renderList();
-    this._initMap();
+    if (this._config.show_map) this._initMap();
   }
 
   _showStatus(message) {
@@ -549,13 +562,14 @@ class AnwbFileCard extends HTMLElement {
         keyboard: false,
       }).addTo(this._map);
       // Fit once the container has a real size, otherwise Leaflet picks a wrong zoom
-      new ResizeObserver(() => {
+      this._mapObserver = new ResizeObserver(() => {
         this._map.invalidateSize();
         if (!this._fitted && container.clientWidth > 0) {
           this._fitted = true;
           this._fitHome();
         }
-      }).observe(container);
+      });
+      this._mapObserver.observe(container);
       this._updateMap();
     } catch (err) {
       this._showStatus("De kaart kon niet geladen worden.");
@@ -578,15 +592,19 @@ class AnwbFileCard extends HTMLElement {
   _applyTiles() {
     if (!this._map || !this._L) return;
     this._tiles?.remove();
-    // OpenStreetMap, like Home Assistant's own map card; dark mode inverts the tiles via CSS
+    this._labels?.remove();
+    // Esri basemaps need no API key and no referrer (OpenStreetMap blocks the Home Assistant app)
+    const esri = (path) => `https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`;
+    const options = { maxZoom: 19, maxNativeZoom: this._dark ? 16 : 19, attribution: "Tiles © Esri" };
     this._tiles = this._L
-      .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap",
-      })
+      .tileLayer(esri(this._dark ? "Canvas/World_Dark_Gray_Base" : "World_Street_Map"), options)
       .addTo(this._map);
-    this.shadowRoot.querySelector(".mapbox").classList.toggle("dark", !!this._dark);
     this._tiles.bringToBack();
+    if (this._dark) {
+      this._labels = this._L
+        .tileLayer(esri("Canvas/World_Dark_Gray_Reference"), { ...options, pane: "shadowPane" })
+        .addTo(this._map);
+    }
   }
 
   _updateMap() {
@@ -642,10 +660,51 @@ class AnwbFileCard extends HTMLElement {
   }
 }
 
+const EDITOR_SCHEMA = [
+  { name: "show_map", selector: { boolean: {} } },
+  { name: "radius_km", selector: { number: { min: 1, max: 200, mode: "box", unit_of_measurement: "km" } } },
+  { name: "height", selector: { number: { min: 300, max: 1400, step: 10, mode: "box", unit_of_measurement: "px" } } },
+];
+const EDITOR_LABELS = {
+  show_map: "Kaart tonen (uit = alleen de lijst)",
+  radius_km: "Beginzoom: straal rond je thuislocatie",
+  height: "Hoogte van de kaart op brede schermen",
+};
+
+class AnwbFileCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this._form) this._form.hass = hass;
+  }
+
+  _render() {
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.schema = EDITOR_SCHEMA;
+      this._form.computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
+      this._form.addEventListener("value-changed", (event) => {
+        this._config = event.detail.value;
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+      });
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = { show_map: true, radius_km: 20, height: 640, ...this._config };
+  }
+}
+
 customElements.define("anwb-file-map-card", AnwbFileCard);
+customElements.define("anwb-file-map-card-editor", AnwbFileCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "anwb-file-map-card",
   name: "ANWB File",
   description: "Files, flitsers en werkzaamheden: lijst met zoeken en filters naast een kaart, zoals op anwb.nl.",
+  preview: false,
+  documentationURL: "https://github.com/vinnie1234/HomeAssisantANWBFile",
 });
