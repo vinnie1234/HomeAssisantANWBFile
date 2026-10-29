@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ANWB file instellen",
+        "description": "Kies hoe vaak er ververst wordt en welke wegen en meldingen je wilt volgen.",
+        "data": {
+          "scan_interval": "Verversinterval (minuten)",
+          "road_type": "Wegtypes",
+          "road_selection": "Wegen",
+          "categories": "Meldingen"
+        },
+        "data_description": {
+          "scan_interval": "Hoe vaak de ANWB-feed wordt opgehaald.",
+          "road_type": "Alleen snelwegen, of ook provinciale wegen.",
+          "road_selection": "Alle wegen volgen, of in de volgende stap specifieke wegen kiezen.",
+          "categories": "Voor welke meldingen sensoren en kaartmarkeringen worden gemaakt."
+        }
+      },
+      "roads": {
+        "title": "Kies wegen",
+        "description": "Selecteer wegen of typ er zelf een, bijvoorbeeld A2 of N201.",
+        "data": {
+          "roads": "Wegen"
+        }
+      }
+    },
+    "error": {
+      "at_least_one_category": "Selecteer minimaal één soort melding.",
+      "at_least_one_road": "Selecteer minimaal één weg."
+    },
+    "abort": {
+      "single_instance_allowed": "Slechts één instantie van ANWB File is toegestaan."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ANWB file instellingen",
+        "data": {
+          "scan_interval": "Verversinterval (minuten)",
+          "road_type": "Wegtypes",
+          "road_selection": "Wegen",
+          "categories": "Meldingen"
+        },
+        "data_description": {
+          "scan_interval": "Hoe vaak de ANWB-feed wordt opgehaald.",
+          "road_type": "Alleen snelwegen, of ook provinciale wegen.",
+          "road_selection": "Alle wegen volgen, of in de volgende stap specifieke wegen kiezen.",
+          "categories": "Voor welke meldingen sensoren en kaartmarkeringen worden gemaakt."
+        }
+      },
+      "roads": {
+        "title": "Kies wegen",
+        "description": "Selecteer wegen of typ er zelf een, bijvoorbeeld A2 of N201.",
+        "data": {
+          "roads": "Wegen"
+        }
+      }
+    },
+    "error": {
+      "at_least_one_category": "Selecteer minimaal één soort melding.",
+      "at_least_one_road": "Selecteer minimaal één weg."
+    }
+  },
+  "selector": {
+    "road_type": {
+      "options": {
+        "a": "Snelwegen (A-wegen)",
+        "a_n": "Snelwegen en provinciale wegen (A- en N-wegen)",
+        "all": "Alle wegen (inclusief stadsringen)"
+      }
+    },
+    "road_selection": {
+      "options": {
+        "all": "Alle wegen",
+        "specific": "Specifieke wegen"
+      }
+    },
+    "categories": {
+      "options": {
+        "jams": "Files",
+        "roadworks": "Wegwerkzaamheden en afsluitingen",
+        "radars": "Flitsers"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "jams": {
+        "name": "Files"
+      },
+      "jam_length": {
+        "name": "Lengte files"
+      },
+      "jam_delay": {
+        "name": "Vertraging files"
+      },
+      "roadworks": {
+        "name": "Wegwerkzaamheden"
+      },
+      "radars": {
+        "name": "Flitsers"
+      },
+      "road": {
+        "name": "Files {road}"
+      }
+    }
+  }
+}

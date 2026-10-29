@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up ANWB traffic",
+        "description": "Choose how often to refresh and which roads and incidents to track.",
+        "data": {
+          "scan_interval": "Refresh interval (minutes)",
+          "road_type": "Road types",
+          "road_selection": "Roads",
+          "categories": "Incidents"
+        },
+        "data_description": {
+          "scan_interval": "How often the ANWB feed is fetched.",
+          "road_type": "Motorways only, or also provincial roads.",
+          "road_selection": "Track every road, or pick specific roads in the next step.",
+          "categories": "Which incidents to create sensors and map markers for."
+        }
+      },
+      "roads": {
+        "title": "Choose roads",
+        "description": "Select roads or type your own, for example A2 or N201.",
+        "data": {
+          "roads": "Roads"
+        }
+      }
+    },
+    "error": {
+      "at_least_one_category": "Select at least one incident type.",
+      "at_least_one_road": "Select at least one road."
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance of ANWB File is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ANWB traffic settings",
+        "data": {
+          "scan_interval": "Refresh interval (minutes)",
+          "road_type": "Road types",
+          "road_selection": "Roads",
+          "categories": "Incidents"
+        },
+        "data_description": {
+          "scan_interval": "How often the ANWB feed is fetched.",
+          "road_type": "Motorways only, or also provincial roads.",
+          "road_selection": "Track every road, or pick specific roads in the next step.",
+          "categories": "Which incidents to create sensors and map markers for."
+        }
+      },
+      "roads": {
+        "title": "Choose roads",
+        "description": "Select roads or type your own, for example A2 or N201.",
+        "data": {
+          "roads": "Roads"
+        }
+      }
+    },
+    "error": {
+      "at_least_one_category": "Select at least one incident type.",
+      "at_least_one_road": "Select at least one road."
+    }
+  },
+  "selector": {
+    "road_type": {
+      "options": {
+        "a": "Motorways (A roads)",
+        "a_n": "Motorways and provincial roads (A and N roads)",
+        "all": "All roads (including city ring roads)"
+      }
+    },
+    "road_selection": {
+      "options": {
+        "all": "All roads",
+        "specific": "Specific roads"
+      }
+    },
+    "categories": {
+      "options": {
+        "jams": "Traffic jams",
+        "roadworks": "Roadworks and closures",
+        "radars": "Speed cameras"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "jams": {
+        "name": "Traffic jams"
+      },
+      "jam_length": {
+        "name": "Traffic jam length"
+      },
+      "jam_delay": {
+        "name": "Traffic jam delay"
+      },
+      "roadworks": {
+        "name": "Roadworks"
+      },
+      "radars": {
+        "name": "Speed cameras"
+      },
+      "road": {
+        "name": "Traffic jams {road}"
+      }
+    }
+  }
+}
