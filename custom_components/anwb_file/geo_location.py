@@ -20,7 +20,7 @@ from .markers import marker_picture
 
 ICONS = {
     CATEGORY_JAMS: "mdi:car-multiple",
-    CATEGORY_RADARS: "mdi:flash",
+    CATEGORY_RADARS: "mdi:camera-wireless",
 }
 DEFAULT_ICON = "mdi:account-hard-hat"
 

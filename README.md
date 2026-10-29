@@ -21,6 +21,85 @@ When adding the integration (and later via **Configure**) you choose:
 
 Changing the options reloads the integration.
 
+### Only specific roads
+
+1. In the integration setup (or later **Settings → Devices & Services → ANWB File → Configure**) set **Roads** to *Specific roads*.
+2. In the next step pick roads from the dropdown, which lists the roads that currently have a report, or type your own and press Enter, for example `A2`, `A12`, `N201`. Spaces and lower case are fine (`a 2` becomes `A2`).
+3. The *Road types* setting decides which roads are offered: A roads only, A and N roads, or all roads. A road you type must match that type to show up.
+
+With specific roads selected:
+- only incidents on those roads are fetched, shown in the card, put on the map and counted in the sensors;
+- you get an extra sensor per road, `sensor.anwb_file_traffic_jams_<road>` (for example `sensor.anwb_file_traffic_jams_a2`), with the number of jams on that road and `length_km`, `delay_min` and a `jams` list as attributes. Use it in automations such as "notify me when the A2 has a jam":
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.anwb_file_traffic_jams_a2
+    above: 0
+actions:
+  - action: notify.notify
+    data:
+      message: "File op de A2: {{ state_attr('sensor.anwb_file_traffic_jams_a2', 'delay_min') }} min vertraging"
+```
+
+The per-road sensors are only created for roads you list, and only when jams are tracked.
+
+### Automation examples for the A12
+
+These work with *All roads* or with *Specific roads* that include `A12`. The attributes of the main sensors (`jams`, `roadworks`, `radars`) list every incident with `road`, `direction`, `from`, `to`, `reason`, `length_km`, `delay_min`, `start` and `stop`, so you can filter on any road yourself.
+
+**Notify with details when a jam appears on the A12** (a template trigger fires when the condition turns true, so you get one message per new jam situation, not one per refresh):
+
+```yaml
+alias: "File op de A12"
+triggers:
+  - trigger: template
+    value_template: >
+      {{ state_attr('sensor.anwb_file_traffic_jams', 'jams')
+         | selectattr('road', 'eq', 'A12') | list | count > 0 }}
+actions:
+  - action: notify.notify
+    data:
+      title: "File op de A12"
+      message: >
+        {% for jam in state_attr('sensor.anwb_file_traffic_jams', 'jams')
+                      | selectattr('road', 'eq', 'A12') %}
+        {{ jam.from }} → {{ jam.to }}: {{ jam.delay_min }} min, {{ jam.length_km }} km.
+        {{ jam.reason }}
+        {% endfor %}
+```
+
+**Only when the delay is longer than 15 minutes** (total over all A12 jams):
+
+```yaml
+triggers:
+  - trigger: template
+    value_template: >
+      {{ state_attr('sensor.anwb_file_traffic_jams', 'jams')
+         | selectattr('road', 'eq', 'A12') | map(attribute='delay_min') | sum > 15 }}
+```
+
+**Speed camera on the A12** (needs *Speed cameras* tracked):
+
+```yaml
+triggers:
+  - trigger: template
+    value_template: >
+      {{ state_attr('sensor.anwb_file_speed_cameras', 'radars')
+         | selectattr('road', 'eq', 'A12') | list | count > 0 }}
+actions:
+  - action: notify.notify
+    data:
+      message: >
+        Flitser op de A12:
+        {{ (state_attr('sensor.anwb_file_speed_cameras', 'radars')
+            | selectattr('road', 'eq', 'A12') | map(attribute='from') | list)[0] }}
+```
+
+**Roadworks or closures on the A12** work the same way, with `sensor.anwb_file_roadworks` and its `roadworks` attribute (needs *Roadworks* tracked). Use `start` and `stop` to see when it begins and ends.
+
+Tip: you can test a template first under **Developer tools → Template**.
+
 ## Sensors
 
 | Sensor | Description |
@@ -50,7 +129,7 @@ height: 640     # card height in px on wide screens (default 640)
 - **List per road** with a road badge (A red, N yellow), number of jams / roadworks / speed cameras, total delay and length. Click a road to expand it: per direction you see the stretch, delay, length, the situation text and the period for roadworks.
 - **Bekijk op kaart** zooms the map to that incident and opens its details.
 - **Search** on road, place or situation text, and **filter chips** for jams, roadworks and speed cameras. The map follows the search and filters.
-- **Map** with jams drawn as a coloured line along the road (yellow = slow, orange = queueing, red = stationary or closed) and a round icon marker per incident: car (jam), roadworker (roadworks), flash (speed camera). The map starts zoomed on your Home Assistant location; buttons jump back there or to all of the Netherlands.
+- **Map** with jams drawn as a coloured line along the road (yellow = slow, orange = queueing, red = stationary or closed) and a round icon marker per incident: car (jam), roadworker (roadworks), camera with signal waves (speed camera). The map starts zoomed on your Home Assistant location; buttons jump back there or to all of the Netherlands.
 - Follows the light/dark theme and switches to a stacked layout on narrow screens.
 
 The card is added automatically by the integration; if it is not found after setup, refresh the browser (Ctrl+F5). Which incidents are drawn on the map is set in the integration options (**Show on the map**). Incidents you track but do not put on the map stay in the list, and "Bekijk op kaart" still shows them.
