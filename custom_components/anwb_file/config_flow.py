@@ -215,21 +215,47 @@ def _source_selector() -> SelectSelector:
 
 class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
     _new_route: dict[str, Any]
+    _editing: dict | None = None
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         menu = ["settings", "add_route"]
         if self._routes():
-            menu.append("remove_route")
+            menu += ["edit_route", "remove_route"]
         return self.async_show_menu(step_id="init", menu_options=menu)
 
     async def async_step_settings(self, user_input=None) -> FlowResult:
         return await self._handle_settings("settings", user_input)
 
     async def async_step_add_route(self, user_input=None) -> FlowResult:
+        self._editing = None
+        return await self.async_step_route()
+
+    async def async_step_edit_route(self, user_input=None) -> FlowResult:
+        """Pick the route to change; it then goes through the same steps as a new one."""
+        routes = {route["id"]: route for route in self._routes()}
+        if user_input is not None:
+            self._editing = routes[user_input["route_id"]]
+            return await self.async_step_route()
+
+        options = [SelectOptionDict(value=r["id"], label=r["name"]) for r in routes.values()]
+        return self.async_show_form(
+            step_id="edit_route",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("route_id"): SelectSelector(
+                        SelectSelectorConfig(options=options, mode=SelectSelectorMode.LIST)
+                    )
+                }
+            ),
+        )
+
+    async def async_step_route(self, user_input=None) -> FlowResult:
         """Name the route and choose how each end is given; the ends follow in the next steps."""
+        editing = self._editing
         if user_input is not None:
             self._new_route = {
-                "id": uuid4().hex[:8],
+                # Keeping the id of an edited route keeps its devices and entities
+                "id": editing["id"] if editing else uuid4().hex[:8],
                 CONF_ROUTE_NAME: user_input[CONF_ROUTE_NAME].strip(),
                 "sources": {end: user_input[f"{end}_source"] for end in ROUTE_ENDS},
             }
@@ -237,14 +263,24 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
                 self._new_route[CONF_ROUTE_PERSON] = person
             return await self.async_step_origin()
 
+        def source(end: str) -> str:
+            if editing and "entity_id" in editing[end]:
+                return ROUTE_SOURCE_ENTITY
+            return ROUTE_SOURCE_LOCATION
+
         return self.async_show_form(
-            step_id="add_route",
+            step_id="route",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_ROUTE_NAME): str,
-                    vol.Required("origin_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
-                    vol.Required("destination_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
-                    vol.Optional(CONF_ROUTE_PERSON): EntitySelector(EntitySelectorConfig(domain="person")),
+                    vol.Required(
+                        CONF_ROUTE_NAME, default=editing[CONF_ROUTE_NAME] if editing else vol.UNDEFINED
+                    ): str,
+                    vol.Required("origin_source", default=source("origin")): _source_selector(),
+                    vol.Required("destination_source", default=source("destination")): _source_selector(),
+                    vol.Optional(
+                        CONF_ROUTE_PERSON,
+                        description={"suggested_value": editing.get(CONF_ROUTE_PERSON) if editing else None},
+                    ): EntitySelector(EntitySelectorConfig(domain="person")),
                 }
             ),
         )
@@ -256,8 +292,9 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
         return await self._async_route_end("destination", user_input)
 
     async def _async_route_end(self, end: str, user_input: dict | None) -> FlowResult:
-        """One end of the new route: a pinned location, or a zone/person/device tracker."""
+        """One end of the route: a pinned location, or a zone/person/device tracker."""
         by_location = self._new_route["sources"][end] == ROUTE_SOURCE_LOCATION
+        current = self._editing[end] if self._editing else {}
         if user_input is not None:
             if by_location:
                 location = user_input["location"]
@@ -271,20 +308,33 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
             if end == "origin":
                 return await self.async_step_destination()
             route = {k: v for k, v in self._new_route.items() if k != "sources"}
-            return self._save_routes([*self._routes(), route])
+            return self._save_routes(self._with_route(route))
 
         if by_location:
-            home = {"latitude": self.hass.config.latitude, "longitude": self.hass.config.longitude}
-            field = {vol.Required("location", default=home): LocationSelector()}
+            start = (
+                current
+                if "latitude" in current
+                else {"latitude": self.hass.config.latitude, "longitude": self.hass.config.longitude}
+            )
+            field = {vol.Required("location", default=start): LocationSelector()}
         else:
             field = {
-                vol.Required("entity"): EntitySelector(EntitySelectorConfig(domain=ROUTE_ENTITY_DOMAINS))
+                vol.Required("entity", default=current.get("entity_id", vol.UNDEFINED)): EntitySelector(
+                    EntitySelectorConfig(domain=ROUTE_ENTITY_DOMAINS)
+                )
             }
         return self.async_show_form(
             step_id=end,
             data_schema=vol.Schema(field),
             description_placeholders={"name": self._new_route[CONF_ROUTE_NAME]},
         )
+
+    def _with_route(self, route: dict) -> list[dict]:
+        """The routes with this one added, or replacing the edited one."""
+        routes = self._routes()
+        if self._editing:
+            return [route if r["id"] == route["id"] else r for r in routes]
+        return [*routes, route]
 
     async def async_step_remove_route(self, user_input=None) -> FlowResult:
         if user_input is not None:

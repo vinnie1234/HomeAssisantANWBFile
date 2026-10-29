@@ -213,6 +213,15 @@ class ANWBFileRoadSensor(_ANWBFileEntity):
         }
 
 
+def _person_suffix(hass: HomeAssistant, person: str | None) -> str:
+    """' (Vincent)' for the device name, so the owner shows in the integration's device list."""
+    if not person:
+        return ""
+    state = hass.states.get(person)
+    name = state.name if state else person.split(".", 1)[-1].replace("_", " ").title()
+    return f" ({name})"
+
+
 def _route_attributes(result: dict) -> dict:
     best = result["best"]
     return {
@@ -308,7 +317,7 @@ class ANWBFileRouteSensor(CoordinatorEntity[ANWBRoutesCoordinator], SensorEntity
         self._attr_unique_id = f"{entry.entry_id}_route_{route['id']}_{description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_route_{route['id']}")},
-            name=f"ANWB Route {route['name']}",
+            name=f"ANWB Route {route['name']}{_person_suffix(coordinator.hass, route.get('person'))}",
             manufacturer="ANWB",
             entry_type=DeviceEntryType.SERVICE,
             via_device=(DOMAIN, entry.entry_id),

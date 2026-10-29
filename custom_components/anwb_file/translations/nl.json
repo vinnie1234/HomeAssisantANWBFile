@@ -42,7 +42,8 @@
         "menu_options": {
           "settings": "Instellingen",
           "add_route": "Route toevoegen",
-          "remove_route": "Route verwijderen"
+          "remove_route": "Route verwijderen",
+          "edit_route": "Route aanpassen"
         }
       },
       "roads": {
@@ -69,19 +70,6 @@
           "map_categories": "Welke meldingen een markering op de kaart krijgen. De lijst in de kaart toont altijd alles wat je volgt."
         }
       },
-      "add_route": {
-        "title": "Route toevoegen",
-        "description": "Krijg de reistijd, vertraging en aankomsttijd van de snelste route tussen twee plekken, met actueel verkeer. Hierna kies je waar de route begint en eindigt.",
-        "data": {
-          "name": "Naam",
-          "origin_source": "Begin",
-          "destination_source": "Eind",
-          "person": "Persoon (eigenaar)"
-        },
-        "data_description": {
-          "person": "Optioneel. Koppelt de route aan een persoon: die staat bij de route in de kaart en als attribuut `person` op de sensoren, zodat je per persoon kunt filteren en automatiseren."
-        }
-      },
       "remove_route": {
         "title": "Route verwijderen",
         "data": {
@@ -102,6 +90,25 @@
         "data": {
           "location": "Locatie",
           "entity": "Zone, persoon of device tracker"
+        }
+      },
+      "route": {
+        "title": "Route",
+        "description": "Krijg de reistijd, vertraging en aankomsttijd van de snelste route tussen twee plekken, met actueel verkeer. Hierna kies je waar de route begint en eindigt.",
+        "data": {
+          "name": "Naam",
+          "origin_source": "Begin",
+          "destination_source": "Eind",
+          "person": "Persoon (eigenaar)"
+        },
+        "data_description": {
+          "person": "Optioneel. Koppelt de route aan een persoon: die staat bij de route in de kaart en als attribuut `person` op de sensoren, zodat je per persoon kunt filteren en automatiseren."
+        }
+      },
+      "edit_route": {
+        "title": "Route aanpassen",
+        "data": {
+          "route_id": "Route"
         }
       }
     },

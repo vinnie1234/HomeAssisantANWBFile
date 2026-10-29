@@ -132,7 +132,7 @@ Set up routes between two places and get the travel time, delay and arrival time
 2. Give it a name, for example `Thuis → Werk`, and choose for the start and the end whether you give **a location** (pin on the map) or **a zone, person or device tracker**.
 3. In the next two steps set the start and then the end. A tracked entity uses its live position, so a route "from my phone to home" always starts where you are.
 4. Optionally pick a **person** as owner of the route (see below).
-5. Repeat for more routes. **Remove a route** is in the same menu. Routes refresh with the same interval as the incidents.
+5. Repeat for more routes. **Edit a route** (name, start, end or person; its sensors and history stay) and **Remove a route** are in the same menu. Routes refresh with the same interval as the incidents.
 
 Each route becomes a device `ANWB Route <name>` with these sensors:
 
@@ -148,6 +148,7 @@ Each route becomes a device `ANWB Route <name>` with these sensors:
 
 Link a route to a person when you add it (the optional *Person (owner)* field). This is separate from the start of the route: the owner can be Vincent while the route starts at a fixed address, or at someone else's phone.
 
+- The person shows in the device name, for example `ANWB Route Huis => Werk (Vincent)`, so you see it in the list under *Devices & Services*. (The entity ids do not change.)
 - All sensors of the route get a `person` attribute (for example `person.vincent`), so you can filter and automate per person.
 - The card shows the name and picture of the person next to the route, and can show only some routes:
 
