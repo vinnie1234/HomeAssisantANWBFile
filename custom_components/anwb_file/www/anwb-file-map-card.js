@@ -747,7 +747,7 @@ class AnwbFileCard extends HTMLElement {
   _fitHome() {
     if (!this._map || !this._L) return;
     const [lat, lon] = this._home();
-    const dLat = this._config.radius_km / 111.32;
+    const dLat = (Number(this._config.radius_km) || 20) / 111.32;
     const dLon = dLat / Math.cos((lat * Math.PI) / 180);
     this._map.fitBounds([[lat - dLat, lon - dLon], [lat + dLat, lon + dLon]]);
   }
@@ -827,8 +827,8 @@ const EDITOR_SCHEMA = [
   { name: "show_map", selector: { boolean: {} } },
   { name: "my_routes_only", selector: { boolean: {} } },
   { name: "person", selector: { entity: { domain: "person" } } },
-  { name: "radius_km", selector: { number: { min: 1, max: 200, mode: "box", unit_of_measurement: "km" } } },
-  { name: "height", selector: { number: { min: 300, max: 1400, step: 10, mode: "box", unit_of_measurement: "px" } } },
+  { name: "radius_km", selector: { number: { min: 1, max: 100, step: 1, mode: "slider", unit_of_measurement: "km" } } },
+  { name: "height", selector: { number: { min: 300, max: 1400, step: 10, mode: "slider", unit_of_measurement: "px" } } },
 ];
 const EDITOR_LABELS = {
   show_map: "Kaart tonen (uit = alleen de lijst)",
@@ -838,9 +838,14 @@ const EDITOR_LABELS = {
   height: "Hoogte van de kaart op brede schermen",
 };
 
+const EDITOR_DEFAULTS = { show_map: true, my_routes_only: false, radius_km: 20, height: 640 };
+
 class AnwbFileCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = config;
+    // Home Assistant hands back what we just emitted: keep the form as it is then, otherwise
+    // clearing a field (to type a new number) would snap back to the default straight away.
+    if (JSON.stringify(config) !== this._emitted) this._data = { ...EDITOR_DEFAULTS, ...config };
     this._render();
   }
 
@@ -855,13 +860,14 @@ class AnwbFileCardEditor extends HTMLElement {
       this._form.schema = EDITOR_SCHEMA;
       this._form.computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
       this._form.addEventListener("value-changed", (event) => {
-        this._config = event.detail.value;
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+        this._data = event.detail.value;
+        this._emitted = JSON.stringify(this._data);
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._data }, bubbles: true, composed: true }));
       });
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.data = { show_map: true, my_routes_only: false, radius_km: 20, height: 640, ...this._config };
+    this._form.data = this._data;
   }
 }
 
