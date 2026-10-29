@@ -71,13 +71,11 @@
       },
       "add_route": {
         "title": "Add a route",
-        "description": "Get the travel time, delay and arrival time of the fastest route between two places, with live traffic. For each end, pin a location on the map or pick a zone, person or device tracker (its live position is used, so you can route from where you are). If you fill in both, the entity is used.",
+        "description": "Get the travel time, delay and arrival time of the fastest route between two places, with live traffic. Next you choose where it starts and where it ends.",
         "data": {
           "name": "Name",
-          "origin_location": "From: location",
-          "origin_entity": "From: zone, person or device tracker",
-          "destination_location": "To: location",
-          "destination_entity": "To: zone, person or device tracker"
+          "origin_source": "Start",
+          "destination_source": "End"
         }
       },
       "remove_route": {
@@ -85,13 +83,27 @@
         "data": {
           "routes": "Routes to remove"
         }
+      },
+      "origin": {
+        "title": "Start of the route",
+        "description": "Where does “{name}” start?",
+        "data": {
+          "location": "Location",
+          "entity": "Zone, person or device tracker"
+        }
+      },
+      "destination": {
+        "title": "End of the route",
+        "description": "Where does “{name}” end?",
+        "data": {
+          "location": "Location",
+          "entity": "Zone, person or device tracker"
+        }
       }
     },
     "error": {
       "at_least_one_category": "Select at least one incident type.",
-      "at_least_one_road": "Select at least one road.",
-      "origin_required": "Choose where the route starts.",
-      "destination_required": "Choose where the route ends."
+      "at_least_one_road": "Select at least one road."
     }
   },
   "selector": {
@@ -113,6 +125,12 @@
         "jams": "Traffic jams",
         "roadworks": "Roadworks and closures",
         "radars": "Speed cameras"
+      }
+    },
+    "route_source": {
+      "options": {
+        "location": "A location on the map",
+        "entity": "A zone, person or device tracker (live position)"
       }
     }
   },

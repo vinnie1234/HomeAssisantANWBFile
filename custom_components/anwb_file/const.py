@@ -45,3 +45,5 @@ CONF_ROUTES = "routes"
 CONF_ROUTE_NAME = "name"
 ROUTE_ENDS = ("origin", "destination")
 ROUTE_ENTITY_DOMAINS = ["zone", "person", "device_tracker"]
+ROUTE_SOURCE_LOCATION = "location"
+ROUTE_SOURCE_ENTITY = "entity"

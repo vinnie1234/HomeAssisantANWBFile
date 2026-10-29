@@ -129,8 +129,8 @@ Sensors only exist for the incident types you selected.
 Set up routes between two places and get the travel time, delay and arrival time of the fastest route with live traffic (ANWB route planner).
 
 1. **Settings → Devices & Services → ANWB File → Configure → Add a route**
-2. Give it a name, for example `Thuis → Werk`.
-3. For **From** and **To** pin a location on the map, or pick a zone, person or device tracker. A tracked entity uses its live position, so a route "from my phone to home" always starts where you are. If you fill in both for one end, the entity is used.
+2. Give it a name, for example `Thuis → Werk`, and choose for the start and the end whether you give **a location** (pin on the map) or **a zone, person or device tracker**.
+3. In the next two steps set the start and then the end. A tracked entity uses its live position, so a route "from my phone to home" always starts where you are.
 4. Repeat for more routes. **Remove a route** is in the same menu. Routes refresh with the same interval as the incidents.
 
 Each route becomes a device `ANWB Route <name>` with these sensors:

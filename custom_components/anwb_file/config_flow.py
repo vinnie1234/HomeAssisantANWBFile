@@ -43,6 +43,8 @@ from .const import (
     ROAD_TYPE_FILTER,
     ROUTE_ENDS,
     ROUTE_ENTITY_DOMAINS,
+    ROUTE_SOURCE_ENTITY,
+    ROUTE_SOURCE_LOCATION,
 )
 from .coordinator import async_fetch_incidents, available_roads, normalize_road
 
@@ -200,25 +202,19 @@ class ANWBFileConfigFlow(_ANWBFileFlowMixin, config_entries.ConfigFlow, domain=D
         return ANWBFileOptionsFlow()
 
 
-def _route_schema() -> vol.Schema:
-    entity = EntitySelector(EntitySelectorConfig(domain=ROUTE_ENTITY_DOMAINS))
-    fields: dict = {vol.Required(CONF_ROUTE_NAME): str}
-    for end in ROUTE_ENDS:
-        fields[vol.Optional(f"{end}_location")] = LocationSelector()
-        fields[vol.Optional(f"{end}_entity")] = entity
-    return vol.Schema(fields)
-
-
-def _route_end(user_input: dict, end: str) -> dict | None:
-    """A tracked entity wins over a pinned location when both are given."""
-    if entity_id := user_input.get(f"{end}_entity"):
-        return {"entity_id": entity_id}
-    if location := user_input.get(f"{end}_location"):
-        return {"latitude": location["latitude"], "longitude": location["longitude"]}
-    return None
+def _source_selector() -> SelectSelector:
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=[ROUTE_SOURCE_LOCATION, ROUTE_SOURCE_ENTITY],
+            translation_key="route_source",
+            mode=SelectSelectorMode.LIST,
+        )
+    )
 
 
 class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
+    _new_route: dict[str, Any]
+
     async def async_step_init(self, user_input=None) -> FlowResult:
         menu = ["settings", "add_route"]
         if self._routes():
@@ -229,26 +225,61 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
         return await self._handle_settings("settings", user_input)
 
     async def async_step_add_route(self, user_input=None) -> FlowResult:
-        errors = {}
+        """Name the route and choose how each end is given; the ends follow in the next steps."""
         if user_input is not None:
-            origin, destination = (_route_end(user_input, end) for end in ROUTE_ENDS)
-            if origin is None:
-                errors["base"] = "origin_required"
-            elif destination is None:
-                errors["base"] = "destination_required"
-            else:
-                route = {
-                    "id": uuid4().hex[:8],
-                    "name": user_input[CONF_ROUTE_NAME].strip(),
-                    "origin": origin,
-                    "destination": destination,
-                }
-                return self._save_routes([*self._routes(), route])
+            self._new_route = {
+                "id": uuid4().hex[:8],
+                CONF_ROUTE_NAME: user_input[CONF_ROUTE_NAME].strip(),
+                "sources": {end: user_input[f"{end}_source"] for end in ROUTE_ENDS},
+            }
+            return await self.async_step_origin()
 
         return self.async_show_form(
             step_id="add_route",
-            data_schema=self.add_suggested_values_to_schema(_route_schema(), user_input),
-            errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_ROUTE_NAME): str,
+                    vol.Required("origin_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
+                    vol.Required("destination_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
+                }
+            ),
+        )
+
+    async def async_step_origin(self, user_input=None) -> FlowResult:
+        return await self._async_route_end("origin", user_input)
+
+    async def async_step_destination(self, user_input=None) -> FlowResult:
+        return await self._async_route_end("destination", user_input)
+
+    async def _async_route_end(self, end: str, user_input: dict | None) -> FlowResult:
+        """One end of the new route: a pinned location, or a zone/person/device tracker."""
+        by_location = self._new_route["sources"][end] == ROUTE_SOURCE_LOCATION
+        if user_input is not None:
+            if by_location:
+                location = user_input["location"]
+                self._new_route[end] = {
+                    "latitude": location["latitude"],
+                    "longitude": location["longitude"],
+                }
+            else:
+                self._new_route[end] = {"entity_id": user_input["entity"]}
+
+            if end == "origin":
+                return await self.async_step_destination()
+            route = {k: v for k, v in self._new_route.items() if k != "sources"}
+            return self._save_routes([*self._routes(), route])
+
+        if by_location:
+            home = {"latitude": self.hass.config.latitude, "longitude": self.hass.config.longitude}
+            field = {vol.Required("location", default=home): LocationSelector()}
+        else:
+            field = {
+                vol.Required("entity"): EntitySelector(EntitySelectorConfig(domain=ROUTE_ENTITY_DOMAINS))
+            }
+        return self.async_show_form(
+            step_id=end,
+            data_schema=vol.Schema(field),
+            description_placeholders={"name": self._new_route[CONF_ROUTE_NAME]},
         )
 
     async def async_step_remove_route(self, user_input=None) -> FlowResult:

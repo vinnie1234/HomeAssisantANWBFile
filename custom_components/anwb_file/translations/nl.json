@@ -71,13 +71,11 @@
       },
       "add_route": {
         "title": "Route toevoegen",
-        "description": "Krijg de reistijd, vertraging en aankomsttijd van de snelste route tussen twee plekken, met actueel verkeer. Kies bij elk eind een locatie op de kaart of een zone, persoon of device tracker (de live positie wordt gebruikt, zodat je vanaf je huidige plek kunt routeren). Vul je beide in, dan wordt de entiteit gebruikt.",
+        "description": "Krijg de reistijd, vertraging en aankomsttijd van de snelste route tussen twee plekken, met actueel verkeer. Hierna kies je waar de route begint en eindigt.",
         "data": {
           "name": "Naam",
-          "origin_location": "Van: locatie",
-          "origin_entity": "Van: zone, persoon of device tracker",
-          "destination_location": "Naar: locatie",
-          "destination_entity": "Naar: zone, persoon of device tracker"
+          "origin_source": "Begin",
+          "destination_source": "Eind"
         }
       },
       "remove_route": {
@@ -85,13 +83,27 @@
         "data": {
           "routes": "Te verwijderen routes"
         }
+      },
+      "origin": {
+        "title": "Begin van de route",
+        "description": "Waar begint “{name}”?",
+        "data": {
+          "location": "Locatie",
+          "entity": "Zone, persoon of device tracker"
+        }
+      },
+      "destination": {
+        "title": "Eind van de route",
+        "description": "Waar eindigt “{name}”?",
+        "data": {
+          "location": "Locatie",
+          "entity": "Zone, persoon of device tracker"
+        }
       }
     },
     "error": {
       "at_least_one_category": "Selecteer minimaal één soort melding.",
-      "at_least_one_road": "Selecteer minimaal één weg.",
-      "origin_required": "Kies waar de route begint.",
-      "destination_required": "Kies waar de route eindigt."
+      "at_least_one_road": "Selecteer minimaal één weg."
     }
   },
   "selector": {
@@ -113,6 +125,12 @@
         "jams": "Files",
         "roadworks": "Wegwerkzaamheden en afsluitingen",
         "radars": "Flitsers"
+      }
+    },
+    "route_source": {
+      "options": {
+        "location": "Een locatie op de kaart",
+        "entity": "Een zone, persoon of device tracker (live positie)"
       }
     }
   },
