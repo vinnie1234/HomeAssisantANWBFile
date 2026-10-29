@@ -26,6 +26,7 @@ from .const import (
     CONF_ROAD_SELECTION,
     CONF_ROAD_TYPE,
     CONF_ROADS,
+    CONF_SHOW_ON_MAP,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     MAX_SCAN_INTERVAL,
@@ -84,6 +85,9 @@ def _settings_schema(defaults: dict) -> vol.Schema:
                     mode=SelectSelectorMode.LIST,
                 )
             ),
+            vol.Required(
+                CONF_SHOW_ON_MAP, default=defaults.get(CONF_SHOW_ON_MAP, True)
+            ): bool,
         }
     )
 

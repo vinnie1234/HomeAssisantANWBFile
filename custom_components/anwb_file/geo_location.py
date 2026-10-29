@@ -16,12 +16,13 @@ from homeassistant.util.location import distance
 
 from .const import DOMAIN, CATEGORY_JAMS, CATEGORY_RADARS
 from .coordinator import ANWBFileCoordinator
+from .markers import incident_color, marker_picture
 
 ICONS = {
     CATEGORY_JAMS: "mdi:car-multiple",
-    CATEGORY_RADARS: "mdi:cctv",
+    CATEGORY_RADARS: "mdi:flash",
 }
-DEFAULT_ICON = "mdi:cone"
+DEFAULT_ICON = "mdi:account-hard-hat"
 
 
 async def async_setup_entry(
@@ -63,12 +64,18 @@ class ANWBFileIncident(GeolocationEvent):
     _unrecorded_attributes = frozenset({"path"})
 
     def __init__(self, incident: dict) -> None:
-        self._incident = incident
         self._attr_icon = ICONS.get(incident["category"], DEFAULT_ICON)
+        self._set_incident(incident)
+
+    def _set_incident(self, incident: dict) -> None:
+        self._incident = incident
+        self._color = incident_color(incident["category"], incident["incident_type"])
+        # The map card shows the entity picture instead of the first letters of the name
+        self._attr_entity_picture = marker_picture(incident["category"], self._color)
 
     @callback
     def update_incident(self, incident: dict) -> None:
-        self._incident = incident
+        self._set_incident(incident)
         self.async_write_ha_state()
 
     @property
@@ -111,5 +118,6 @@ class ANWBFileIncident(GeolocationEvent):
             "delay_min": incident["delay_min"],
             "start": incident["start"],
             "stop": incident["stop"],
+            "color": self._color,
             "path": incident["path"],
         }

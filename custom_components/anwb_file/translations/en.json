@@ -8,13 +8,15 @@
           "scan_interval": "Refresh interval (minutes)",
           "road_type": "Road types",
           "road_selection": "Roads",
-          "categories": "Incidents"
+          "categories": "Incidents",
+          "show_on_map": "Show incidents on the map"
         },
         "data_description": {
           "scan_interval": "How often the ANWB feed is fetched.",
           "road_type": "Motorways only, or also provincial roads.",
           "road_selection": "Track every road, or pick specific roads in the next step.",
-          "categories": "Which incidents to create sensors and map markers for."
+          "categories": "Which incidents to create sensors and map markers for.",
+          "show_on_map": "Create map markers for the incidents and load the ANWB File map card."
         }
       },
       "roads": {
@@ -41,13 +43,15 @@
           "scan_interval": "Refresh interval (minutes)",
           "road_type": "Road types",
           "road_selection": "Roads",
-          "categories": "Incidents"
+          "categories": "Incidents",
+          "show_on_map": "Show incidents on the map"
         },
         "data_description": {
           "scan_interval": "How often the ANWB feed is fetched.",
           "road_type": "Motorways only, or also provincial roads.",
           "road_selection": "Track every road, or pick specific roads in the next step.",
-          "categories": "Which incidents to create sensors and map markers for."
+          "categories": "Which incidents to create sensors and map markers for.",
+          "show_on_map": "Create map markers for the incidents and load the ANWB File map card."
         }
       },
       "roads": {

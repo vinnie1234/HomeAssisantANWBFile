@@ -7,6 +7,7 @@ CONF_ROAD_TYPE = "road_type"
 CONF_ROAD_SELECTION = "road_selection"
 CONF_ROADS = "roads"
 CONF_CATEGORIES = "categories"
+CONF_SHOW_ON_MAP = "show_on_map"
 
 DEFAULT_SCAN_INTERVAL = 5  # minutes
 MIN_SCAN_INTERVAL = 1

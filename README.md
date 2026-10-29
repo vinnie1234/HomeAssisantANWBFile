@@ -17,6 +17,7 @@ When adding the integration (and later via **Configure**) you choose:
 | Road types | A roads only / A and N roads / all roads (incl. city ring roads) |
 | Roads | All roads, or specific roads (pick from the list or type e.g. `A2`, `N201`) |
 | Incidents | Traffic jams, speed cameras, roadworks and closures (default: jams and speed cameras) |
+| Show on map | Create map markers and load the map card (default on) |
 
 Changing the options reloads the integration.
 
@@ -35,7 +36,13 @@ Sensors only exist for the incident types you selected.
 
 ## Map
 
-Every incident is also a `geo_location` entity (source `anwb_file`) with latitude and longitude, so the standard **Map** card and dashboard panel draw it. Jams and roadworks sit at the start of the incident (where you meet the tail). The `path` attribute holds the full route as `[lat, lon]` points.
+With **Show on map** enabled, every incident is a `geo_location` entity (source `anwb_file`), so the standard Map card shows it. Each marker has a coloured badge with an icon:
+
+| Incident | Icon | Colour |
+|---|---|---|
+| Traffic jam | car | yellow = slow, orange = queueing, red = stationary or closed |
+| Speed camera | flash | blue |
+| Roadworks / closure | roadworker | grey |
 
 ```yaml
 type: map
@@ -43,7 +50,26 @@ geo_location_sources:
   - anwb_file
 ```
 
-Entities appear and disappear as ANWB reports and clears incidents. Their `icon`s differ per type (cars for jams, camera for speed cameras, cone for roadworks).
+### ANWB File card (coloured roads + text list)
+
+The integration also ships its own card, which draws each jam as a **coloured line along the road** and lists everything in text underneath (sorted by delay):
+
+```yaml
+type: custom:anwb-file-map-card
+show_list: true   # text list below the map (default true)
+show_map: true    # set to false for a list only (default true)
+height: 450       # map height in px (default 450)
+```
+
+The card is loaded automatically; if it is not found after setup, refresh the browser (Ctrl+F5). Without map markers you can still get a text list from the `jams` attribute of `sensor.anwb_file_traffic_jams`:
+
+```yaml
+type: markdown
+content: >
+  {% for j in state_attr('sensor.anwb_file_traffic_jams', 'jams') %}
+  **{{ j.road }}** {{ j.from }} - {{ j.to }}: {{ j.length_km }} km, {{ j.delay_min }} min
+  {% else %}Geen files{% endfor %}
+```
 
 ## Installation
 
