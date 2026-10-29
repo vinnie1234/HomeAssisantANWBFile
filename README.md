@@ -131,7 +131,8 @@ Set up routes between two places and get the travel time, delay and arrival time
 1. **Settings → Devices & Services → ANWB File → Configure → Add a route**
 2. Give it a name, for example `Thuis → Werk`, and choose for the start and the end whether you give **a location** (pin on the map) or **a zone, person or device tracker**.
 3. In the next two steps set the start and then the end. A tracked entity uses its live position, so a route "from my phone to home" always starts where you are.
-4. Repeat for more routes. **Remove a route** is in the same menu. Routes refresh with the same interval as the incidents.
+4. Optionally pick a **person** as owner of the route (see below).
+5. Repeat for more routes. **Remove a route** is in the same menu. Routes refresh with the same interval as the incidents.
 
 Each route becomes a device `ANWB Route <name>` with these sensors:
 
@@ -142,6 +143,39 @@ Each route becomes a device `ANWB Route <name>` with these sensors:
 | `sensor.anwb_route_<name>_arrival_time` | Expected arrival if you leave now (timestamp) |
 | `sensor.anwb_route_<name>_distance` | Distance in km |
 | `sensor.anwb_route_<name>_route` | The A and N roads of the fastest route. Attributes: `alternatives` (via, travel time, delay, distance, arrival and difference per alternative), `incidents`, `toll`, `origin`, `destination` |
+
+### Routes per person
+
+Link a route to a person when you add it (the optional *Person (owner)* field). This is separate from the start of the route: the owner can be Vincent while the route starts at a fixed address, or at someone else's phone.
+
+- All sensors of the route get a `person` attribute (for example `person.vincent`), so you can filter and automate per person.
+- The card shows the name and picture of the person next to the route, and can show only some routes:
+
+```yaml
+type: custom:anwb-file-map-card
+my_routes_only: true          # only the routes of the person linked to the logged-in user
+# or
+person: person.vincent        # only the routes of this person
+```
+
+Without either option the card shows all routes. Routes without a person are hidden when you filter on a person.
+
+Example, notify the owner of the route (the `notify.mobile_app_*` service name is just an example, use your own):
+
+```yaml
+alias: "Vertraging op route van Vincent"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.anwb_route_werk_thuis_delay
+    above: 10
+conditions:
+  - condition: template
+    value_template: "{{ state_attr('sensor.anwb_route_werk_thuis_delay', 'person') == 'person.vincent' }}"
+actions:
+  - action: notify.mobile_app_vincent
+    data:
+      message: "{{ states('sensor.anwb_route_werk_thuis_delay') | int }} minuten vertraging op je route naar huis."
+```
 
 The ANWB File card lists your routes at the top. **Bekijk op kaart** draws the fastest route in blue with the jams on that route in orange or red, plus the alternatives in grey. Click an alternative to draw that one instead.
 
@@ -178,6 +212,8 @@ Add it via **Add card** (it is listed under *Custom cards* as **ANWB File**, wit
 type: custom:anwb-file-map-card
 show_map: true  # false = list only, without the map (default true)
 radius_km: 20   # initial map view: your Home Assistant location + this radius (default 20)
+my_routes_only: false  # true = only the routes of the logged-in user's person
+person: person.vincent # or: only the routes of this person (optional)
 height: 640     # card height in px on wide screens (default 640)
 ```
 

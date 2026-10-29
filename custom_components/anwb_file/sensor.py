@@ -332,7 +332,10 @@ class ANWBFileRouteSensor(CoordinatorEntity[ANWBRoutesCoordinator], SensorEntity
     @property
     def extra_state_attributes(self) -> dict | None:
         result = self._result
-        if not result or not self.entity_description.attributes_fn:
+        if not result:
             return None
-        return self.entity_description.attributes_fn(result)
+        attributes = self.entity_description.attributes_fn(result) if self.entity_description.attributes_fn else {}
+        if result.get("person"):
+            attributes["person"] = result["person"]
+        return attributes or None
 

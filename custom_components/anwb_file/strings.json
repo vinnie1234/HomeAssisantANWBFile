@@ -75,7 +75,11 @@
         "data": {
           "name": "Name",
           "origin_source": "Start",
-          "destination_source": "End"
+          "destination_source": "End",
+          "person": "Person (owner)"
+        },
+        "data_description": {
+          "person": "Optional. Links the route to a person: it shows on the route card and as the `person` attribute of its sensors, so you can filter and automate per person."
         }
       },
       "remove_route": {

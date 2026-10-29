@@ -30,6 +30,7 @@ from .const import (
     CONF_ROAD_TYPE,
     CONF_ROADS,
     CONF_ROUTE_NAME,
+    CONF_ROUTE_PERSON,
     CONF_ROUTES,
     CONF_MAP_CATEGORIES,
     CONF_SCAN_INTERVAL,
@@ -232,6 +233,8 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
                 CONF_ROUTE_NAME: user_input[CONF_ROUTE_NAME].strip(),
                 "sources": {end: user_input[f"{end}_source"] for end in ROUTE_ENDS},
             }
+            if person := user_input.get(CONF_ROUTE_PERSON):
+                self._new_route[CONF_ROUTE_PERSON] = person
             return await self.async_step_origin()
 
         return self.async_show_form(
@@ -241,6 +244,7 @@ class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
                     vol.Required(CONF_ROUTE_NAME): str,
                     vol.Required("origin_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
                     vol.Required("destination_source", default=ROUTE_SOURCE_LOCATION): _source_selector(),
+                    vol.Optional(CONF_ROUTE_PERSON): EntitySelector(EntitySelectorConfig(domain="person")),
                 }
             ),
         )

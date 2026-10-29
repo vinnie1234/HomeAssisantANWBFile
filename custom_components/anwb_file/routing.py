@@ -83,7 +83,14 @@ class ANWBRoutesCoordinator(DataUpdateCoordinator[dict[str, dict | None]]):
         payload = []
         for route in self.routes:
             result = (self.data or {}).get(route["id"])
-            payload.append({"id": route["id"], "name": route["name"], **(result or {"error": True})})
+            payload.append(
+                {
+                    "id": route["id"],
+                    "name": route["name"],
+                    "person": route.get("person"),
+                    **(result or {"error": True}),
+                }
+            )
         return payload
 
     async def _async_update_data(self) -> dict[str, dict | None]:
@@ -122,6 +129,7 @@ class ANWBRoutesCoordinator(DataUpdateCoordinator[dict[str, dict | None]]):
             return None
 
         return {
+            "person": route.get("person"),
             "origin": list(origin),
             "destination": list(destination),
             "best": routes[0],

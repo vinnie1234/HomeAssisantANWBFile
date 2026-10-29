@@ -60,6 +60,10 @@ const STYLE = `
   .route.selected { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color) inset; }
   .route-head { display: flex; align-items: center; gap: 10px; }
   .route-name { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; }
+  .person { display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; padding: 2px 9px 2px 3px; border-radius: 12px;
+    background: var(--secondary-background-color); font-size: 12px; font-weight: 500; vertical-align: middle; --mdc-icon-size: 16px; }
+  .person img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; }
+  .person ha-icon { margin-left: 3px; }
   .route-show { flex: none; cursor: pointer; padding: 6px 12px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600;
     background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color); }
   .route-show:hover, .route.selected .route-show { border-color: var(--primary-color); color: var(--primary-color); }
@@ -229,7 +233,7 @@ class AnwbFileCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = { show_map: true, radius_km: 20, height: 640, ...config };
+    this._config = { show_map: true, my_routes_only: false, radius_km: 20, height: 640, ...config };
     this.style.setProperty("--card-height", `${this._config.height}px`);
     this._build();
   }
@@ -466,7 +470,7 @@ class AnwbFileCard extends HTMLElement {
 
     list.innerHTML =
       this._routesHtml() +
-      (this._routes.length ? '<div class="section-title">Meldingen</div>' : "") +
+      (this._visibleRoutes().length ? '<div class="section-title">Meldingen</div>' : "") +
       [...byRoad.keys()]
       .sort(compareRoads)
       .map((road) => this._groupHtml(road, byRoad.get(road), autoOpen || this._expanded.has(road)))
@@ -545,11 +549,33 @@ class AnwbFileCard extends HTMLElement {
 
   /* ---------- routes ---------- */
 
+  /** Routes to show: all, those of one person, or those of the logged-in user's person. */
+  _visibleRoutes() {
+    let wanted = this._config.person || null;
+    if (this._config.my_routes_only) {
+      const userId = this._hass?.user?.id;
+      const mine = Object.values(this._hass?.states || {}).find(
+        (s) => s.entity_id.startsWith("person.") && userId && s.attributes.user_id === userId
+      );
+      wanted = mine ? mine.entity_id : "none";
+    }
+    return wanted ? this._routes.filter((route) => route.person === wanted) : this._routes;
+  }
+
+  _personHtml(entityId) {
+    const state = entityId && this._hass?.states[entityId];
+    if (!state) return "";
+    const name = state.attributes.friendly_name || entityId;
+    const picture = state.attributes.entity_picture;
+    return `<span class="person">${picture ? `<img src="${esc(picture)}" alt="" />` : "<ha-icon icon=\"mdi:account\"></ha-icon>"}${esc(name)}</span>`;
+  }
+
   _routesHtml() {
-    if (!this._routes.length) return "";
+    const routes = this._visibleRoutes();
+    if (!routes.length) return "";
     const time = (iso) => new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
     const min = (value) => `${Math.round(value)} min`;
-    const rows = this._routes.map((route) => {
+    const rows = routes.map((route) => {
       const selected = route.id === this._selectedRoute;
       if (route.error || !route.best) {
         return `<div class="route"><div class="route-head"><span class="route-name">${esc(route.name)}</span></div>
@@ -573,7 +599,7 @@ class AnwbFileCard extends HTMLElement {
             `</div>`
           : "";
       return `<div class="route ${selected ? "selected" : ""}" data-route="${esc(route.id)}">
-        <div class="route-head"><span class="route-name">${esc(route.name)}</span>
+        <div class="route-head"><span class="route-name">${esc(route.name)}${this._personHtml(route.person)}</span>
           <button class="route-show" data-route="${esc(route.id)}">${selected ? "Verberg route" : "Bekijk op kaart"}</button></div>
         <div class="route-stats">
           <span class="route-time">${min(best.duration_min)}</span>
@@ -799,11 +825,15 @@ class AnwbFileCard extends HTMLElement {
 
 const EDITOR_SCHEMA = [
   { name: "show_map", selector: { boolean: {} } },
+  { name: "my_routes_only", selector: { boolean: {} } },
+  { name: "person", selector: { entity: { domain: "person" } } },
   { name: "radius_km", selector: { number: { min: 1, max: 200, mode: "box", unit_of_measurement: "km" } } },
   { name: "height", selector: { number: { min: 300, max: 1400, step: 10, mode: "box", unit_of_measurement: "px" } } },
 ];
 const EDITOR_LABELS = {
   show_map: "Kaart tonen (uit = alleen de lijst)",
+  my_routes_only: "Alleen mijn routes (de persoon die bij jouw gebruiker hoort)",
+  person: "Alleen routes van deze persoon (leeg = alle routes)",
   radius_km: "Beginzoom: straal rond je thuislocatie",
   height: "Hoogte van de kaart op brede schermen",
 };
@@ -831,7 +861,7 @@ class AnwbFileCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.data = { show_map: true, radius_km: 20, height: 640, ...this._config };
+    this._form.data = { show_map: true, my_routes_only: false, radius_km: 20, height: 640, ...this._config };
   }
 }
 
