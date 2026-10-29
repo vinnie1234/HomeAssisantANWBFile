@@ -9,14 +9,14 @@
           "road_type": "Wegtypes",
           "road_selection": "Wegen",
           "categories": "Meldingen",
-          "show_on_map": "Toon meldingen op de kaart"
+          "map_categories": "Tonen op de kaart"
         },
         "data_description": {
           "scan_interval": "Hoe vaak de ANWB-feed wordt opgehaald.",
           "road_type": "Alleen snelwegen, of ook provinciale wegen.",
           "road_selection": "Alle wegen volgen, of in de volgende stap specifieke wegen kiezen.",
           "categories": "Voor welke meldingen sensoren en kaartmarkeringen worden gemaakt.",
-          "show_on_map": "Maak kaartmarkeringen voor de meldingen en laad de ANWB File kaartkaart."
+          "map_categories": "Welke meldingen een markering op de kaart krijgen. De lijst in de kaart toont altijd alles wat je volgt."
         }
       },
       "roads": {
@@ -44,14 +44,14 @@
           "road_type": "Wegtypes",
           "road_selection": "Wegen",
           "categories": "Meldingen",
-          "show_on_map": "Toon meldingen op de kaart"
+          "map_categories": "Tonen op de kaart"
         },
         "data_description": {
           "scan_interval": "Hoe vaak de ANWB-feed wordt opgehaald.",
           "road_type": "Alleen snelwegen, of ook provinciale wegen.",
           "road_selection": "Alle wegen volgen, of in de volgende stap specifieke wegen kiezen.",
           "categories": "Voor welke meldingen sensoren en kaartmarkeringen worden gemaakt.",
-          "show_on_map": "Maak kaartmarkeringen voor de meldingen en laad de ANWB File kaartkaart."
+          "map_categories": "Welke meldingen een markering op de kaart krijgen. De lijst in de kaart toont altijd alles wat je volgt."
         }
       },
       "roads": {

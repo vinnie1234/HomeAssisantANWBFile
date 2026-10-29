@@ -7,7 +7,7 @@ CONF_ROAD_TYPE = "road_type"
 CONF_ROAD_SELECTION = "road_selection"
 CONF_ROADS = "roads"
 CONF_CATEGORIES = "categories"
-CONF_SHOW_ON_MAP = "show_on_map"
+CONF_MAP_CATEGORIES = "map_categories"
 
 DEFAULT_SCAN_INTERVAL = 5  # minutes
 MIN_SCAN_INTERVAL = 1
@@ -31,3 +31,8 @@ CATEGORY_JAMS = "jams"
 CATEGORY_ROADWORKS = "roadworks"
 CATEGORY_RADARS = "radars"
 CATEGORIES = [CATEGORY_JAMS, CATEGORY_ROADWORKS, CATEGORY_RADARS]
+
+# Shown on the map by default; roadworks/closures are numerous and clutter it
+DEFAULT_MAP_CATEGORIES = [CATEGORY_JAMS, CATEGORY_RADARS]
+
+SIGNAL_READY = f"{DOMAIN}_ready"

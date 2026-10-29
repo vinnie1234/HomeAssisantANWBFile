@@ -16,7 +16,7 @@ from homeassistant.util.location import distance
 
 from .const import DOMAIN, CATEGORY_JAMS, CATEGORY_RADARS
 from .coordinator import ANWBFileCoordinator
-from .markers import incident_color, marker_picture
+from .markers import marker_picture
 
 ICONS = {
     CATEGORY_JAMS: "mdi:car-multiple",
@@ -36,7 +36,9 @@ async def async_setup_entry(
         incidents = {
             incident["id"]: incident
             for incident in (coordinator.data or {}).get("incidents", [])
-            if incident["latitude"] is not None and incident["longitude"] is not None
+            if incident["category"] in coordinator.map_categories
+            and incident["latitude"] is not None
+            and incident["longitude"] is not None
         }
 
         for incident_id in entities.keys() - incidents.keys():
@@ -69,7 +71,7 @@ class ANWBFileIncident(GeolocationEvent):
 
     def _set_incident(self, incident: dict) -> None:
         self._incident = incident
-        self._color = incident_color(incident["category"], incident["incident_type"])
+        self._color = incident["color"]
         # The map card shows the entity picture instead of the first letters of the name
         self._attr_entity_picture = marker_picture(incident["category"], self._color)
 

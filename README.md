@@ -17,7 +17,7 @@ When adding the integration (and later via **Configure**) you choose:
 | Road types | A roads only / A and N roads / all roads (incl. city ring roads) |
 | Roads | All roads, or specific roads (pick from the list or type e.g. `A2`, `N201`) |
 | Incidents | Traffic jams, speed cameras, roadworks and closures (default: jams and speed cameras) |
-| Show on map | Create map markers and load the map card (default on) |
+| Show on map | Which of those get a marker on the map (default: jams and speed cameras). The card list always shows everything you track |
 
 Changing the options reloads the integration.
 
@@ -34,15 +34,27 @@ Changing the options reloads the integration.
 
 Sensors only exist for the incident types you selected.
 
-## Map
+## ANWB File card
 
-With **Show on map** enabled, every incident is a `geo_location` entity (source `anwb_file`), so the standard Map card shows it. Each marker has a coloured badge with an icon:
+A dashboard card that works like anwb.nl/verkeer: a list grouped per road next to a map.
 
-| Incident | Icon | Colour |
-|---|---|---|
-| Traffic jam | car | yellow = slow, orange = queueing, red = stationary or closed |
-| Speed camera | flash | blue |
-| Roadworks / closure | roadworker | grey |
+```yaml
+type: custom:anwb-file-map-card
+radius_km: 20   # initial map view: your Home Assistant location + this radius (default 20)
+height: 640     # card height in px on wide screens (default 640)
+```
+
+- **List per road** with a road badge (A red, N yellow), number of jams / roadworks / speed cameras, total delay and length. Click a road to expand it: per direction you see the stretch, delay, length, the situation text and the period for roadworks.
+- **Bekijk op kaart** zooms the map to that incident and opens its details.
+- **Search** on road, place or situation text, and **filter chips** for jams, roadworks and speed cameras. The map follows the search and filters.
+- **Map** with jams drawn as a coloured line along the road (yellow = slow, orange = queueing, red = stationary or closed) and a round icon marker per incident: car (jam), roadworker (roadworks), flash (speed camera). The map starts zoomed on your Home Assistant location; buttons jump back there or to all of the Netherlands.
+- Follows the light/dark theme and switches to a stacked layout on narrow screens.
+
+The card is added automatically by the integration; if it is not found after setup, refresh the browser (Ctrl+F5). Which incidents are drawn on the map is set in the integration options (**Show on the map**). Incidents you track but do not put on the map stay in the list, and "Bekijk op kaart" still shows them.
+
+## Standard Map card
+
+When at least one category is set to show on the map, those incidents are also `geo_location` entities (source `anwb_file`) with a coloured icon badge, so Home Assistant's own Map card can show them too:
 
 ```yaml
 type: map
@@ -50,26 +62,7 @@ geo_location_sources:
   - anwb_file
 ```
 
-### ANWB File card (coloured roads + text list)
-
-The integration also ships its own card, which draws each jam as a **coloured line along the road** and lists everything in text underneath (sorted by delay):
-
-```yaml
-type: custom:anwb-file-map-card
-show_list: true   # text list below the map (default true)
-show_map: true    # set to false for a list only (default true)
-height: 450       # map height in px (default 450)
-```
-
-The card is loaded automatically; if it is not found after setup, refresh the browser (Ctrl+F5). Without map markers you can still get a text list from the `jams` attribute of `sensor.anwb_file_traffic_jams`:
-
-```yaml
-type: markdown
-content: >
-  {% for j in state_attr('sensor.anwb_file_traffic_jams', 'jams') %}
-  **{{ j.road }}** {{ j.from }} - {{ j.to }}: {{ j.length_km }} km, {{ j.delay_min }} min
-  {% else %}Geen files{% endfor %}
-```
+The map in the ANWB File card uses OpenStreetMap tiles (Leaflet is bundled, see `www/LEAFLET-LICENSE.txt`).
 
 ## Installation
 

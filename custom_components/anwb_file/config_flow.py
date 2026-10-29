@@ -20,14 +20,13 @@ from homeassistant.helpers.selector import (
 from .const import (
     DOMAIN,
     CATEGORIES,
-    CATEGORY_JAMS,
-    CATEGORY_RADARS,
     CONF_CATEGORIES,
     CONF_ROAD_SELECTION,
     CONF_ROAD_TYPE,
     CONF_ROADS,
-    CONF_SHOW_ON_MAP,
+    CONF_MAP_CATEGORIES,
     CONF_SCAN_INTERVAL,
+    DEFAULT_MAP_CATEGORIES,
     DEFAULT_SCAN_INTERVAL,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
@@ -76,7 +75,7 @@ def _settings_schema(defaults: dict) -> vol.Schema:
                 )
             ),
             vol.Required(
-                CONF_CATEGORIES, default=defaults.get(CONF_CATEGORIES, [CATEGORY_JAMS, CATEGORY_RADARS])
+                CONF_CATEGORIES, default=defaults.get(CONF_CATEGORIES, DEFAULT_MAP_CATEGORIES)
             ): SelectSelector(
                 SelectSelectorConfig(
                     options=CATEGORIES,
@@ -86,8 +85,16 @@ def _settings_schema(defaults: dict) -> vol.Schema:
                 )
             ),
             vol.Required(
-                CONF_SHOW_ON_MAP, default=defaults.get(CONF_SHOW_ON_MAP, True)
-            ): bool,
+                CONF_MAP_CATEGORIES,
+                default=defaults.get(CONF_MAP_CATEGORIES, DEFAULT_MAP_CATEGORIES),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=CATEGORIES,
+                    translation_key=CONF_CATEGORIES,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
         }
     )
 
@@ -121,7 +128,14 @@ class _ANWBFileFlowMixin:
         if not user_input.get(CONF_CATEGORIES):
             return self._show_settings(step_id, {"base": "at_least_one_category"})
 
-        self._settings = {**user_input, CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
+        self._settings = {
+            **user_input,
+            CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+            # Only categories that are tracked at all can be drawn on the map
+            CONF_MAP_CATEGORIES: [
+                c for c in user_input[CONF_MAP_CATEGORIES] if c in user_input[CONF_CATEGORIES]
+            ],
+        }
         if self._settings[CONF_ROAD_SELECTION] == ROAD_SELECTION_SPECIFIC:
             return await self.async_step_roads()
         return self._finish({**self._settings, CONF_ROADS: []})

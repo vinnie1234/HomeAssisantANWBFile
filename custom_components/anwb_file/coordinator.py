@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import logging
+import math
 
 import aiohttp
 
@@ -16,15 +17,19 @@ from .const import (
     CATEGORIES,
     CATEGORY_RADARS,
     CONF_CATEGORIES,
+    CONF_MAP_CATEGORIES,
     CONF_ROAD_SELECTION,
     CONF_ROAD_TYPE,
     CONF_ROADS,
     CONF_SCAN_INTERVAL,
+    DEFAULT_MAP_CATEGORIES,
     DEFAULT_SCAN_INTERVAL,
     ROAD_SELECTION_SPECIFIC,
     ROAD_TYPE_A,
     ROAD_TYPE_FILTER,
 )
+
+from .markers import incident_color
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +92,31 @@ def decode_polyline(encoded: str) -> list[list[float]]:
     return points
 
 
+def simplify_path(points: list[list[float]], tolerance: float = 0.0001) -> list[list[float]]:
+    """Ramer-Douglas-Peucker; ~11 m tolerance keeps the road shape but cuts ~80% of the points."""
+    if len(points) < 3:
+        return points
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(points) - 1)]
+    while stack:
+        first, last = stack.pop()
+        (ax, ay), (bx, by) = points[first], points[last]
+        dx, dy = bx - ax, by - ay
+        length_sq = dx * dx + dy * dy
+        farthest, farthest_distance = -1, 0.0
+        for i in range(first + 1, last):
+            px, py = points[i]
+            t = 0.0 if length_sq == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length_sq))
+            d = math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+            if d > farthest_distance:
+                farthest, farthest_distance = i, d
+        if farthest_distance > tolerance:
+            keep[farthest] = True
+            stack += [(first, farthest), (farthest, last)]
+    return [point for point, kept in zip(points, keep) if kept]
+
+
 class ANWBFileCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         options = {**entry.data, **entry.options}
@@ -100,6 +130,10 @@ class ANWBFileCoordinator(DataUpdateCoordinator):
         )
         self._road_types = ROAD_TYPE_FILTER[options.get(CONF_ROAD_TYPE, ROAD_TYPE_A)]
         self.categories = set(options.get(CONF_CATEGORIES, CATEGORIES))
+        # Only these are drawn as markers on the map; the list always shows all
+        self.map_categories = self.categories & set(
+            options.get(CONF_MAP_CATEGORIES, DEFAULT_MAP_CATEGORIES)
+        )
         self.roads: list[str] | None = (
             [normalize_road(road) for road in options.get(CONF_ROADS, [])]
             if options.get(CONF_ROAD_SELECTION) == ROAD_SELECTION_SPECIFIC
@@ -117,6 +151,16 @@ class ANWBFileCoordinator(DataUpdateCoordinator):
             "incidents": self._parse(raw),
         }
 
+    def payload(self) -> dict:
+        """What the ANWB File card receives over the websocket."""
+        data = self.data or {"updated": None, "incidents": []}
+        return {
+            "updated": data["updated"],
+            "incidents": data["incidents"],
+            "categories": sorted(self.categories),
+            "map_categories": sorted(self.map_categories),
+        }
+
     def _parse(self, raw: dict) -> list[dict]:
         incidents = []
         for road in raw.get("roads", []):
@@ -132,7 +176,7 @@ class ANWBFileCoordinator(DataUpdateCoordinator):
 
     @staticmethod
     def _incident(item: dict, category: str, segment: dict) -> dict:
-        path = decode_polyline(item["polyline"]) if item.get("polyline") else []
+        path = simplify_path(decode_polyline(item["polyline"])) if item.get("polyline") else []
 
         # Radars are a single point; for jams/roadworks the polyline runs in the
         # driving direction, so its first point is where you hit the tail.
@@ -153,6 +197,7 @@ class ANWBFileCoordinator(DataUpdateCoordinator):
             "road": normalize_road(item.get("road", "")),
             "direction": f"{segment.get('start')} - {segment.get('end')}",
             "incident_type": item.get("incidentType"),
+            "color": incident_color(category, item.get("incidentType")),
             "from": item.get("from"),
             "to": item.get("to"),
             "reason": item.get("reason"),
