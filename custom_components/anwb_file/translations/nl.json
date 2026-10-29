@@ -38,6 +38,21 @@
   "options": {
     "step": {
       "init": {
+        "title": "ANWB File",
+        "menu_options": {
+          "settings": "Instellingen",
+          "add_route": "Route toevoegen",
+          "remove_route": "Route verwijderen"
+        }
+      },
+      "roads": {
+        "title": "Kies wegen",
+        "description": "Selecteer wegen of typ er zelf een, bijvoorbeeld A2 of N201.",
+        "data": {
+          "roads": "Wegen"
+        }
+      },
+      "settings": {
         "title": "ANWB file instellingen",
         "data": {
           "scan_interval": "Verversinterval (minuten)",
@@ -54,17 +69,29 @@
           "map_categories": "Welke meldingen een markering op de kaart krijgen. De lijst in de kaart toont altijd alles wat je volgt."
         }
       },
-      "roads": {
-        "title": "Kies wegen",
-        "description": "Selecteer wegen of typ er zelf een, bijvoorbeeld A2 of N201.",
+      "add_route": {
+        "title": "Route toevoegen",
+        "description": "Krijg de reistijd, vertraging en aankomsttijd van de snelste route tussen twee plekken, met actueel verkeer. Kies bij elk eind een locatie op de kaart of een zone, persoon of device tracker (de live positie wordt gebruikt, zodat je vanaf je huidige plek kunt routeren). Vul je beide in, dan wordt de entiteit gebruikt.",
         "data": {
-          "roads": "Wegen"
+          "name": "Naam",
+          "origin_location": "Van: locatie",
+          "origin_entity": "Van: zone, persoon of device tracker",
+          "destination_location": "Naar: locatie",
+          "destination_entity": "Naar: zone, persoon of device tracker"
+        }
+      },
+      "remove_route": {
+        "title": "Route verwijderen",
+        "data": {
+          "routes": "Te verwijderen routes"
         }
       }
     },
     "error": {
       "at_least_one_category": "Selecteer minimaal één soort melding.",
-      "at_least_one_road": "Selecteer minimaal één weg."
+      "at_least_one_road": "Selecteer minimaal één weg.",
+      "origin_required": "Kies waar de route begint.",
+      "destination_required": "Kies waar de route eindigt."
     }
   },
   "selector": {
@@ -108,6 +135,21 @@
       },
       "road": {
         "name": "Files {road}"
+      },
+      "route_duration": {
+        "name": "Reistijd"
+      },
+      "route_delay": {
+        "name": "Vertraging"
+      },
+      "route_arrival": {
+        "name": "Aankomsttijd"
+      },
+      "route_distance": {
+        "name": "Afstand"
+      },
+      "route_via": {
+        "name": "Route"
       }
     }
   }

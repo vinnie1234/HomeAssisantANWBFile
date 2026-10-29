@@ -28,7 +28,7 @@ DEFAULT_ICON = "mdi:account-hard-hat"
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: ANWBFileCoordinator = entry.runtime_data
+    coordinator: ANWBFileCoordinator = entry.runtime_data.incidents
     entities: dict[str, ANWBFileIncident] = {}
 
     @callback

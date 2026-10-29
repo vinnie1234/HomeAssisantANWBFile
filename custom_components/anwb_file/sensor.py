@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -15,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -23,6 +25,7 @@ from .const import (
     CATEGORY_ROADWORKS,
 )
 from .coordinator import ANWBFileCoordinator
+from .routing import ANWBRoutesCoordinator
 
 # Attributes listed without the polyline path, which only the map needs
 _LIST_KEYS = ("road", "direction", "from", "to", "reason", "length_km", "delay_min", "start", "stop")
@@ -107,7 +110,8 @@ SENSORS: tuple[ANWBFileSensorDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: ANWBFileCoordinator = entry.runtime_data
+    coordinator: ANWBFileCoordinator = entry.runtime_data.incidents
+    routes: ANWBRoutesCoordinator = entry.runtime_data.routes
     entities: list[SensorEntity] = [
         ANWBFileSensor(coordinator, entry, description)
         for description in SENSORS
@@ -115,6 +119,10 @@ async def async_setup_entry(
     ]
     if coordinator.roads is not None and CATEGORY_JAMS in coordinator.categories:
         entities += [ANWBFileRoadSensor(coordinator, entry, road) for road in coordinator.roads]
+    for route in routes.routes:
+        entities += [
+            ANWBFileRouteSensor(routes, entry, route, description) for description in ROUTE_SENSORS
+        ]
     async_add_entities(entities)
 
 
@@ -203,3 +211,128 @@ class ANWBFileRoadSensor(_ANWBFileEntity):
             "jams": _summary(jams),
             "updated": self.coordinator.data["updated"],
         }
+
+
+def _route_attributes(result: dict) -> dict:
+    best = result["best"]
+    return {
+        "via": best["via"],
+        "toll": best["toll"],
+        "departure": best["departure"],
+        "origin": result["origin"],
+        "destination": result["destination"],
+        "incidents": [
+            {"category": i["category"], "delay_min": i["delay_min"]} for i in best["incidents"]
+        ],
+        "alternatives": [
+            {
+                key: alternative[key]
+                for key in ("via", "duration_min", "delay_min", "distance_km", "arrival", "difference_min")
+            }
+            for alternative in result["alternatives"]
+        ],
+    }
+
+
+@dataclass(frozen=True, kw_only=True)
+class ANWBFileRouteSensorDescription(SensorEntityDescription):
+    value_fn: Callable[[dict], float | str | datetime | None]
+    attributes_fn: Callable[[dict], dict] | None = None
+
+
+ROUTE_SENSORS: tuple[ANWBFileRouteSensorDescription, ...] = (
+    ANWBFileRouteSensorDescription(
+        key="duration",
+        translation_key="route_duration",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        value_fn=lambda result: result["best"]["duration_min"],
+        attributes_fn=lambda result: {
+            "normal_duration_min": round(result["best"]["duration_min"] - result["best"]["delay_min"], 1)
+        },
+    ),
+    ANWBFileRouteSensorDescription(
+        key="delay",
+        translation_key="route_delay",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        icon="mdi:timer-sand",
+        value_fn=lambda result: result["best"]["delay_min"],
+    ),
+    ANWBFileRouteSensorDescription(
+        key="arrival",
+        translation_key="route_arrival",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda result: dt_util.parse_datetime(result["best"]["arrival"]),
+    ),
+    ANWBFileRouteSensorDescription(
+        key="distance",
+        translation_key="route_distance",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda result: result["best"]["distance_km"],
+    ),
+    ANWBFileRouteSensorDescription(
+        key="via",
+        translation_key="route_via",
+        icon="mdi:routes",
+        value_fn=lambda result: " · ".join(result["best"]["via"]) or None,
+        attributes_fn=_route_attributes,
+    ),
+)
+
+
+class ANWBFileRouteSensor(CoordinatorEntity[ANWBRoutesCoordinator], SensorEntity):
+    """One value of the fastest route between two places, with traffic."""
+
+    entity_description: ANWBFileRouteSensorDescription
+    _attr_has_entity_name = True
+    _unrecorded_attributes = frozenset({"alternatives", "incidents"})
+
+    def __init__(
+        self,
+        coordinator: ANWBRoutesCoordinator,
+        entry: ConfigEntry,
+        route: dict,
+        description: ANWBFileRouteSensorDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._route_id = route["id"]
+        self._attr_unique_id = f"{entry.entry_id}_route_{route['id']}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_route_{route['id']}")},
+            name=f"ANWB Route {route['name']}",
+            manufacturer="ANWB",
+            entry_type=DeviceEntryType.SERVICE,
+            via_device=(DOMAIN, entry.entry_id),
+            configuration_url="https://www.anwb.nl/verkeer/routeplanner",
+        )
+
+    @property
+    def _result(self) -> dict | None:
+        return (self.coordinator.data or {}).get(self._route_id)
+
+    @property
+    def available(self) -> bool:
+        # A single route can fail (e.g. a tracker without position) while the others work
+        return super().available and self._result is not None
+
+    @property
+    def native_value(self):
+        result = self._result
+        return self.entity_description.value_fn(result) if result else None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        result = self._result
+        if not result or not self.entity_description.attributes_fn:
+            return None
+        return self.entity_description.attributes_fn(result)
+

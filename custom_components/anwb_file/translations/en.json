@@ -38,6 +38,21 @@
   "options": {
     "step": {
       "init": {
+        "title": "ANWB File",
+        "menu_options": {
+          "settings": "Settings",
+          "add_route": "Add a route",
+          "remove_route": "Remove a route"
+        }
+      },
+      "roads": {
+        "title": "Choose roads",
+        "description": "Select roads or type your own, for example A2 or N201.",
+        "data": {
+          "roads": "Roads"
+        }
+      },
+      "settings": {
         "title": "ANWB traffic settings",
         "data": {
           "scan_interval": "Refresh interval (minutes)",
@@ -54,17 +69,29 @@
           "map_categories": "Which incidents get a marker on the map. The card list always shows everything you track."
         }
       },
-      "roads": {
-        "title": "Choose roads",
-        "description": "Select roads or type your own, for example A2 or N201.",
+      "add_route": {
+        "title": "Add a route",
+        "description": "Get the travel time, delay and arrival time of the fastest route between two places, with live traffic. For each end, pin a location on the map or pick a zone, person or device tracker (its live position is used, so you can route from where you are). If you fill in both, the entity is used.",
         "data": {
-          "roads": "Roads"
+          "name": "Name",
+          "origin_location": "From: location",
+          "origin_entity": "From: zone, person or device tracker",
+          "destination_location": "To: location",
+          "destination_entity": "To: zone, person or device tracker"
+        }
+      },
+      "remove_route": {
+        "title": "Remove a route",
+        "data": {
+          "routes": "Routes to remove"
         }
       }
     },
     "error": {
       "at_least_one_category": "Select at least one incident type.",
-      "at_least_one_road": "Select at least one road."
+      "at_least_one_road": "Select at least one road.",
+      "origin_required": "Choose where the route starts.",
+      "destination_required": "Choose where the route ends."
     }
   },
   "selector": {
@@ -108,6 +135,21 @@
       },
       "road": {
         "name": "Traffic jams {road}"
+      },
+      "route_duration": {
+        "name": "Travel time"
+      },
+      "route_delay": {
+        "name": "Delay"
+      },
+      "route_arrival": {
+        "name": "Arrival time"
+      },
+      "route_distance": {
+        "name": "Distance"
+      },
+      "route_via": {
+        "name": "Route"
       }
     }
   }

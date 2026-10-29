@@ -36,3 +36,12 @@ CATEGORIES = [CATEGORY_JAMS, CATEGORY_ROADWORKS, CATEGORY_RADARS]
 DEFAULT_MAP_CATEGORIES = [CATEGORY_JAMS, CATEGORY_RADARS]
 
 SIGNAL_READY = f"{DOMAIN}_ready"
+
+API_ROUTE_URL = "https://api.anwb.nl/routing/route/v1/route/car"
+
+# Routes live in the entry options as a list of
+# {"id", "name", "origin", "destination"}; an end is {"entity_id"} or {"latitude", "longitude"}
+CONF_ROUTES = "routes"
+CONF_ROUTE_NAME = "name"
+ROUTE_ENDS = ("origin", "destination")
+ROUTE_ENTITY_DOMAINS = ["zone", "person", "device_tracker"]

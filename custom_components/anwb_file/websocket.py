@@ -14,10 +14,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import DOMAIN, SIGNAL_READY
-from .coordinator import ANWBFileCoordinator
+from .runtime import ANWBFileRuntime
 
 
-def _loaded_coordinator(hass: HomeAssistant) -> ANWBFileCoordinator | None:
+def _loaded_runtime(hass: HomeAssistant) -> ANWBFileRuntime | None:
     # SETUP_IN_PROGRESS: SIGNAL_READY is sent before Home Assistant marks the entry LOADED
     active = (ConfigEntryState.LOADED, ConfigEntryState.SETUP_IN_PROGRESS)
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -34,25 +34,25 @@ def async_register_websocket(hass: HomeAssistant) -> None:
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/subscribe"})
 @callback
 def ws_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
-    unsubscribe_coordinator = None
+    unsubscribe_runtime = None
 
     @callback
     def _attach() -> None:
         # Also runs when the integration is reloaded (options changed): the old
-        # coordinator is gone, so move this subscription to the new one.
-        nonlocal unsubscribe_coordinator
-        if unsubscribe_coordinator:
-            unsubscribe_coordinator()
-            unsubscribe_coordinator = None
-        coordinator = _loaded_coordinator(hass)
-        if coordinator is None:
+        # runtime is gone, so move this subscription to the new one.
+        nonlocal unsubscribe_runtime
+        if unsubscribe_runtime:
+            unsubscribe_runtime()
+            unsubscribe_runtime = None
+        runtime = _loaded_runtime(hass)
+        if runtime is None:
             return
 
         @callback
         def _send() -> None:
-            connection.send_message(websocket_api.event_message(msg["id"], coordinator.payload()))
+            connection.send_message(websocket_api.event_message(msg["id"], runtime.payload()))
 
-        unsubscribe_coordinator = coordinator.async_add_listener(_send)
+        unsubscribe_runtime = runtime.async_add_listener(_send)
         _send()
 
     unsubscribe_signal = async_dispatcher_connect(hass, SIGNAL_READY, _attach)
@@ -60,8 +60,8 @@ def ws_subscribe(hass: HomeAssistant, connection: websocket_api.ActiveConnection
     @callback
     def _unsubscribe() -> None:
         unsubscribe_signal()
-        if unsubscribe_coordinator:
-            unsubscribe_coordinator()
+        if unsubscribe_runtime:
+            unsubscribe_runtime()
 
     connection.subscriptions[msg["id"]] = _unsubscribe
     connection.send_result(msg["id"])

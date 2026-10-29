@@ -7,6 +7,17 @@
 
 Live traffic information from **ANWB**: traffic jams (files), speed cameras (flitsers) and roadworks, as sensors and as markers on the Home Assistant map.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Incident on the map](docs/screenshots/incident.jpg) | ![Route with alternatives](docs/screenshots/route.jpg) |
+| *Jams per road, "Bekijk op kaart" zooms to an incident* | *A route with travel time, delay and alternatives* |
+
+![Dark theme](docs/screenshots/dark.jpg)
+
+*Screenshots use live ANWB data in a test page; the layout in Home Assistant follows your theme.*
+
 ## Setup options
 
 When adding the integration (and later via **Configure**) you choose:
@@ -112,6 +123,50 @@ Tip: you can test a template first under **Developer tools → Template**.
 | `sensor.anwb_file_traffic_jams_<road>` | Only when specific roads are selected: jams per road |
 
 Sensors only exist for the incident types you selected.
+
+## Routes
+
+Set up routes between two places and get the travel time, delay and arrival time of the fastest route with live traffic (ANWB route planner).
+
+1. **Settings → Devices & Services → ANWB File → Configure → Add a route**
+2. Give it a name, for example `Thuis → Werk`.
+3. For **From** and **To** pin a location on the map, or pick a zone, person or device tracker. A tracked entity uses its live position, so a route "from my phone to home" always starts where you are. If you fill in both for one end, the entity is used.
+4. Repeat for more routes. **Remove a route** is in the same menu. Routes refresh with the same interval as the incidents.
+
+Each route becomes a device `ANWB Route <name>` with these sensors:
+
+| Sensor | Description |
+|---|---|
+| `sensor.anwb_route_<name>_travel_time` | Travel time in minutes including traffic (attribute `normal_duration_min`: without delays) |
+| `sensor.anwb_route_<name>_delay` | Delay in minutes caused by traffic |
+| `sensor.anwb_route_<name>_arrival_time` | Expected arrival if you leave now (timestamp) |
+| `sensor.anwb_route_<name>_distance` | Distance in km |
+| `sensor.anwb_route_<name>_route` | The A and N roads of the fastest route. Attributes: `alternatives` (via, travel time, delay, distance, arrival and difference per alternative), `incidents`, `toll`, `origin`, `destination` |
+
+The ANWB File card lists your routes at the top. **Bekijk op kaart** draws the fastest route in blue with the jams on that route in orange or red, plus the alternatives in grey. Click an alternative to draw that one instead.
+
+Example, a notification when the way home takes much longer than usual:
+
+```yaml
+alias: "Vertraging op de route naar huis"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.anwb_route_werk_thuis_delay
+    above: 10
+conditions:
+  - condition: time
+    after: "15:30:00"
+    before: "19:00:00"
+actions:
+  - action: notify.notify
+    data:
+      title: "File op de route naar huis"
+      message: >
+        {{ states('sensor.anwb_route_werk_thuis_delay') | int }} minuten vertraging.
+        Aankomst om {{ as_timestamp(states('sensor.anwb_route_werk_thuis_arrival_time')) | timestamp_custom('%H:%M') }}.
+```
+
+Notes: the entity ids follow the route name you chose (check them under *Developer tools → States*). Routes are searched by coordinates, there is no address search yet.
 
 ## ANWB File card
 

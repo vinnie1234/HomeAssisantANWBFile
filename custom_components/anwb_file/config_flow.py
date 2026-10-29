@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from uuid import uuid4
 
 import voluptuous as vol
 
@@ -9,9 +10,13 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    LocationSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -24,6 +29,8 @@ from .const import (
     CONF_ROAD_SELECTION,
     CONF_ROAD_TYPE,
     CONF_ROADS,
+    CONF_ROUTE_NAME,
+    CONF_ROUTES,
     CONF_MAP_CATEGORIES,
     CONF_SCAN_INTERVAL,
     DEFAULT_MAP_CATEGORIES,
@@ -34,6 +41,8 @@ from .const import (
     ROAD_SELECTION_SPECIFIC,
     ROAD_TYPE_A,
     ROAD_TYPE_FILTER,
+    ROUTE_ENDS,
+    ROUTE_ENTITY_DOMAINS,
 )
 from .coordinator import async_fetch_incidents, available_roads, normalize_road
 
@@ -191,12 +200,83 @@ class ANWBFileConfigFlow(_ANWBFileFlowMixin, config_entries.ConfigFlow, domain=D
         return ANWBFileOptionsFlow()
 
 
+def _route_schema() -> vol.Schema:
+    entity = EntitySelector(EntitySelectorConfig(domain=ROUTE_ENTITY_DOMAINS))
+    fields: dict = {vol.Required(CONF_ROUTE_NAME): str}
+    for end in ROUTE_ENDS:
+        fields[vol.Optional(f"{end}_location")] = LocationSelector()
+        fields[vol.Optional(f"{end}_entity")] = entity
+    return vol.Schema(fields)
+
+
+def _route_end(user_input: dict, end: str) -> dict | None:
+    """A tracked entity wins over a pinned location when both are given."""
+    if entity_id := user_input.get(f"{end}_entity"):
+        return {"entity_id": entity_id}
+    if location := user_input.get(f"{end}_location"):
+        return {"latitude": location["latitude"], "longitude": location["longitude"]}
+    return None
+
+
 class ANWBFileOptionsFlow(_ANWBFileFlowMixin, config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None) -> FlowResult:
-        return await self._handle_settings("init", user_input)
+        menu = ["settings", "add_route"]
+        if self._routes():
+            menu.append("remove_route")
+        return self.async_show_menu(step_id="init", menu_options=menu)
+
+    async def async_step_settings(self, user_input=None) -> FlowResult:
+        return await self._handle_settings("settings", user_input)
+
+    async def async_step_add_route(self, user_input=None) -> FlowResult:
+        errors = {}
+        if user_input is not None:
+            origin, destination = (_route_end(user_input, end) for end in ROUTE_ENDS)
+            if origin is None:
+                errors["base"] = "origin_required"
+            elif destination is None:
+                errors["base"] = "destination_required"
+            else:
+                route = {
+                    "id": uuid4().hex[:8],
+                    "name": user_input[CONF_ROUTE_NAME].strip(),
+                    "origin": origin,
+                    "destination": destination,
+                }
+                return self._save_routes([*self._routes(), route])
+
+        return self.async_show_form(
+            step_id="add_route",
+            data_schema=self.add_suggested_values_to_schema(_route_schema(), user_input),
+            errors=errors,
+        )
+
+    async def async_step_remove_route(self, user_input=None) -> FlowResult:
+        if user_input is not None:
+            removed = set(user_input[CONF_ROUTES])
+            return self._save_routes([r for r in self._routes() if r["id"] not in removed])
+
+        options = [SelectOptionDict(value=r["id"], label=r["name"]) for r in self._routes()]
+        return self.async_show_form(
+            step_id="remove_route",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_ROUTES): SelectSelector(
+                        SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST)
+                    )
+                }
+            ),
+        )
 
     def _defaults(self) -> dict:
         return {**self.config_entry.data, **self.config_entry.options}
 
+    def _routes(self) -> list[dict]:
+        return self._defaults().get(CONF_ROUTES, [])
+
+    def _save_routes(self, routes: list[dict]) -> FlowResult:
+        return self.async_create_entry(data={**self._defaults(), CONF_ROUTES: routes})
+
     def _finish(self, data: dict) -> FlowResult:
-        return self.async_create_entry(data=data)
+        # Saving the settings must keep the routes
+        return self.async_create_entry(data={**data, CONF_ROUTES: self._routes()})

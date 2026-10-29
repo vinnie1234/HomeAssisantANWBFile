@@ -40,7 +40,7 @@ const TYPE_LABEL = {
 };
 
 const STYLE = `
-  :host { display: block; }
+  :host { display: block; color: var(--primary-text-color); }
   * { box-sizing: border-box; }
   ha-card { overflow: hidden; }
   .wrap { display: grid; grid-template-columns: 1fr; position: relative; }
@@ -52,7 +52,31 @@ const STYLE = `
   .wrap.nomap { grid-template-columns: 1fr; height: auto; }
   .nomap .panel { border-right: 0; }
   .nomap .list { max-height: var(--card-height, 640px); }
-  .nomap .mapbox, .nomap .show-map { display: none; }
+  .nomap .mapbox, .nomap .show-map, .nomap .route-show { display: none; }
+  .section-title { padding: 14px 16px 6px; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--secondary-text-color); }
+  .route { margin: 0 12px 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--divider-color);
+    background: var(--card-background-color); }
+  .route.selected { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+  .route-head { display: flex; align-items: center; gap: 10px; }
+  .route-name { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; }
+  .route-show { flex: none; cursor: pointer; padding: 6px 12px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600;
+    background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color); }
+  .route-show:hover, .route.selected .route-show { border-color: var(--primary-color); color: var(--primary-color); }
+  .route-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-top: 8px; }
+  .route-time { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .delay-tag { padding: 2px 10px; border-radius: 12px; font-size: 12.5px; font-weight: 700; color: #fff; background: #2e7d32; }
+  .delay-tag.warn { background: #f57c00; }
+  .delay-tag.bad { background: #d32f2f; }
+  .route-sub { margin-top: 4px; font-size: 13px; color: var(--secondary-text-color); display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .route-alts { margin-top: 10px; border-top: 1px solid var(--divider-color); }
+  .route-alts-title { padding: 8px 0 2px; font-size: 12px; font-weight: 700; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: .4px; }
+  .route-alt { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; padding: 7px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+  .route-alt:hover { background: var(--secondary-background-color); }
+  .route-alt.active { background: color-mix(in srgb, var(--primary-color) 12%, transparent); font-weight: 600; }
+  .route-alt .diff { color: var(--secondary-text-color); }
+  .endpoint { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; color: #fff; font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 5px rgba(0,0,0,.5); }
 
   .toolbar { padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 10px;
     border-bottom: 1px solid var(--divider-color); background: var(--card-background-color); }
@@ -199,6 +223,9 @@ class AnwbFileCard extends HTMLElement {
     this._selectedId = null;
     this._expanded = new Set();
     this._loaded = false;
+    this._routes = [];
+    this._selectedRoute = null;
+    this._selectedAlt = -1;
   }
 
   setConfig(config) {
@@ -271,6 +298,8 @@ class AnwbFileCard extends HTMLElement {
     this._incidents = data.incidents || [];
     this._categories = CATEGORY_ORDER.filter((c) => (data.categories || []).includes(c));
     this._mapCategories = new Set(data.map_categories || []);
+    this._routes = data.routes || [];
+    if (this._selectedRoute && !this._routes.some((r) => r.id === this._selectedRoute)) this._selectedRoute = null;
     if (!this._loaded) {
       this._loaded = true;
       this._filters = new Set(this._categories);
@@ -279,6 +308,7 @@ class AnwbFileCard extends HTMLElement {
     this._renderToolbar();
     this._renderList();
     this._updateMap();
+    this._drawRoute();
   }
 
   _visible() {
@@ -360,6 +390,10 @@ class AnwbFileCard extends HTMLElement {
       this._updateMap();
     });
     $(".list").addEventListener("click", (event) => {
+      const routeButton = event.target.closest(".route-show");
+      if (routeButton) return this._toggleRoute(routeButton.dataset.route);
+      const alternative = event.target.closest(".route-alt");
+      if (alternative) return this._pickAlternative(alternative.dataset.route, Number(alternative.dataset.alt));
       const button = event.target.closest(".show-map");
       if (button) return this._select(button.dataset.id, { zoom: true });
       const head = event.target.closest(".group-head");
@@ -413,9 +447,11 @@ class AnwbFileCard extends HTMLElement {
       : "Laden…";
 
     if (!visible.length) {
-      list.innerHTML = this._loaded
-        ? `<div class="empty"><ha-icon icon="mdi:check-circle-outline"></ha-icon>Geen meldingen gevonden</div>`
-        : "";
+      list.innerHTML =
+        this._routesHtml() +
+        (this._loaded
+          ? `<div class="empty"><ha-icon icon="mdi:check-circle-outline"></ha-icon>Geen meldingen gevonden</div>`
+          : "");
       return;
     }
 
@@ -428,7 +464,10 @@ class AnwbFileCard extends HTMLElement {
     const searching = !!this._query.trim();
     const autoOpen = searching && byRoad.size <= 8;
 
-    list.innerHTML = [...byRoad.keys()]
+    list.innerHTML =
+      this._routesHtml() +
+      (this._routes.length ? '<div class="section-title">Meldingen</div>' : "") +
+      [...byRoad.keys()]
       .sort(compareRoads)
       .map((road) => this._groupHtml(road, byRoad.get(road), autoOpen || this._expanded.has(road)))
       .join("");
@@ -504,6 +543,102 @@ class AnwbFileCard extends HTMLElement {
     </div>`;
   }
 
+  /* ---------- routes ---------- */
+
+  _routesHtml() {
+    if (!this._routes.length) return "";
+    const time = (iso) => new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+    const min = (value) => `${Math.round(value)} min`;
+    const rows = this._routes.map((route) => {
+      const selected = route.id === this._selectedRoute;
+      if (route.error || !route.best) {
+        return `<div class="route"><div class="route-head"><span class="route-name">${esc(route.name)}</span></div>
+          <div class="route-sub">Route niet beschikbaar: de locatie of de ANWB-gegevens ontbreken.</div></div>`;
+      }
+      const best = route.best;
+      const level = best.delay_min >= 10 ? "bad" : best.delay_min >= 1 ? "warn" : "";
+      const jams = best.incidents.length;
+      const alternatives =
+        selected && route.alternatives.length
+          ? `<div class="route-alts"><div class="route-alts-title">Routes</div>` +
+            [best, ...route.alternatives]
+              .map((alt, index) => {
+                const diff = index === 0 ? "snelste" : `${alt.difference_min > 0 ? "+" : ""}${Math.round(alt.difference_min)} min`;
+                const altIndex = index === 0 ? -1 : index - 1;
+                return `<div class="route-alt ${altIndex === this._selectedAlt ? "active" : ""}" data-route="${esc(route.id)}" data-alt="${altIndex}">
+                  <span>${esc(alt.via.join(" · ") || "Route")}</span><span>${min(alt.duration_min)}</span>
+                  <span class="diff">${diff}</span><span class="diff">${Math.round(alt.distance_km)} km</span></div>`;
+              })
+              .join("") +
+            `</div>`
+          : "";
+      return `<div class="route ${selected ? "selected" : ""}" data-route="${esc(route.id)}">
+        <div class="route-head"><span class="route-name">${esc(route.name)}</span>
+          <button class="route-show" data-route="${esc(route.id)}">${selected ? "Verberg route" : "Bekijk op kaart"}</button></div>
+        <div class="route-stats">
+          <span class="route-time">${min(best.duration_min)}</span>
+          <span class="delay-tag ${level}">${best.delay_min >= 1 ? `+ ${min(best.delay_min)} vertraging` : "Geen vertraging"}</span>
+          <span>Aankomst ${time(best.arrival)}</span>
+        </div>
+        <div class="route-sub">
+          <span>${esc(best.via.join(" · "))}</span><span>${Math.round(best.distance_km)} km</span>
+          ${jams ? `<span>${jams} ${jams === 1 ? "file" : "files"} op de route</span>` : ""}
+          ${best.toll ? "<span>Tol</span>" : ""}
+        </div>
+        ${alternatives}
+      </div>`;
+    });
+    return `<div class="section-title">Mijn routes</div>${rows.join("")}`;
+  }
+
+  _toggleRoute(id) {
+    this._selectedRoute = this._selectedRoute === id ? null : id;
+    this._selectedAlt = -1;
+    this._renderList();
+    this._drawRoute({ fit: true });
+    if (this._selectedRoute && !this._root.classList.contains("wide")) {
+      this.shadowRoot.querySelector(".mapbox").scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+
+  _pickAlternative(id, index) {
+    this._selectedAlt = index;
+    this._renderList();
+    this._drawRoute({ fit: true });
+  }
+
+  _drawRoute({ fit = false } = {}) {
+    if (!this._map || !this._L) return;
+    const L = this._L;
+    this._routeLayer.clearLayers();
+    const route = this._routes.find((r) => r.id === this._selectedRoute);
+    if (!route || !route.best) return;
+
+    const all = [route.best, ...route.alternatives];
+    const chosen = all[this._selectedAlt + 1] || route.best;
+    const line = (path, color, weight, opacity) => {
+      if (path.length < 2) return;
+      L.polyline(path, { color: "#fff", weight: weight + 4, opacity: 0.9, lineCap: "round", interactive: false }).addTo(this._routeLayer);
+      L.polyline(path, { color, weight, opacity, lineCap: "round", interactive: false }).addTo(this._routeLayer);
+    };
+    for (const alt of all) if (alt !== chosen) line(alt.path, "#78909c", 5, 0.8);
+    line(chosen.path, "#1976d2", 7, 1);
+    // Delays on the route itself, on top of the blue line
+    for (const incident of chosen.incidents) line(incident.path, incident.delay_min >= 5 ? "#d32f2f" : "#f57c00", 7, 1);
+
+    const endpoint = (point, letter, color) =>
+      L.marker(point, {
+        icon: L.divIcon({ className: "", html: `<div class="endpoint" style="background:${color}">${letter}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }),
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: 500,
+      }).addTo(this._routeLayer);
+    endpoint(route.origin, "A", "#2e7d32");
+    endpoint(route.destination, "B", "#c62828");
+
+    if (fit && chosen.path.length > 1) this._map.flyToBounds(L.latLngBounds(chosen.path), { padding: [50, 50], duration: 0.7 });
+  }
+
   /* ---------- selection ---------- */
 
   _select(id, { zoom = false, scrollList = false } = {}) {
@@ -552,6 +687,7 @@ class AnwbFileCard extends HTMLElement {
 
       this._map = L.map(container, { zoomControl: true, attributionControl: true, preferCanvas: false });
       this._map.attributionControl.setPrefix(false);
+      this._routeLayer = L.layerGroup().addTo(this._map);
       this._lines = L.layerGroup().addTo(this._map);
       this._pins = L.layerGroup().addTo(this._map);
       this._markers = new Map();
@@ -571,6 +707,7 @@ class AnwbFileCard extends HTMLElement {
       });
       this._mapObserver.observe(container);
       this._updateMap();
+      this._drawRoute();
     } catch (err) {
       this._showStatus("De kaart kon niet geladen worden.");
     }
