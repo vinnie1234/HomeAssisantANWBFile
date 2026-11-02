@@ -263,6 +263,8 @@ class AnwbFileCard extends HTMLElement {
   }
 
   connectedCallback() {
+    this._onShowRoute = () => this._showRequestedRoute();
+    window.addEventListener("anwb-file-show-route", this._onShowRoute);
     if (this._hass && !this._unsub) this._subscribe();
     this._resizeObserver = new ResizeObserver(() => {
       const wide = this.clientWidth >= WIDE_BREAKPOINT;
@@ -273,6 +275,7 @@ class AnwbFileCard extends HTMLElement {
   }
 
   disconnectedCallback() {
+    window.removeEventListener("anwb-file-show-route", this._onShowRoute);
     this._resizeObserver?.disconnect();
     this._unsubscribe();
   }
@@ -313,6 +316,25 @@ class AnwbFileCard extends HTMLElement {
     this._renderList();
     this._updateMap();
     this._drawRoute();
+    this._showRequestedRoute();
+  }
+
+  /**
+   * A dashboard can ask for a route to be shown: set window.anwbFileShowRoute = { slug: "werk_huis", person: "person.x" } (the slug
+   * is the route name as in the entity id sensor.anwb_route_<slug>_route) and fire a "anwb-file-show-route" event on window,
+   * or open the card after setting it. The route is selected and the map zooms to it; the request is used once.
+   */
+  _showRequestedRoute() {
+    const wanted = window.anwbFileShowRoute;
+    if (!wanted || !this._routes.length) return;
+    const slug = (name) => String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const route = this._routes.find((r) => slug(r.name) === wanted.slug && (!wanted.person || r.person === wanted.person));
+    if (!route) return;
+    window.anwbFileShowRoute = null;
+    this._selectedRoute = route.id;
+    this._selectedAlt = -1;
+    this._renderList();
+    this._drawRoute({ fit: true });
   }
 
   _visible() {
@@ -734,6 +756,7 @@ class AnwbFileCard extends HTMLElement {
       this._mapObserver.observe(container);
       this._updateMap();
       this._drawRoute();
+      this._showRequestedRoute();
     } catch (err) {
       this._showStatus("De kaart kon niet geladen worden.");
     }
