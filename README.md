@@ -1,6 +1,6 @@
 # ANWB File
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![GitHub release](https://img.shields.io/github/v/release/vinnie1234/HomeAssisantANWBFile)](https://github.com/vinnie1234/HomeAssisantANWBFile/releases)
 
 [![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=vinnie1234&repository=HomeAssisantANWBFile&category=integration)
 [![Open your Home Assistant instance](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=anwb_file)
@@ -240,9 +240,13 @@ The map in the ANWB File card uses Esri basemap tiles (no API key needed) and a 
 
 ## Installation
 
-1. HACS → three dots → **Custom repositories** → `https://github.com/vinnie1234/HomeAssisantANWBFile`, category **Integration**
-2. Download **ANWB File** and restart Home Assistant
+1. Open **HACS**, search for **ANWB File** and click **Download** (or use the *Add to HACS* button at the top)
+2. Restart Home Assistant
 3. **Settings → Devices & Services → + Add Integration → ANWB File**
+
+### Manual installation
+
+Copy the `custom_components/anwb_file` folder from this repository into the `custom_components` folder of your Home Assistant configuration, restart Home Assistant and add the integration as above.
 
 ## Notes
 
