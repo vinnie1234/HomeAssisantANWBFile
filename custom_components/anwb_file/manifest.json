@@ -4,6 +4,7 @@
   "codeowners": [
     "@vinnie1234"
   ],
+  "categories": ["vehicles_transport"],
   "config_flow": true,
   "dependencies": [
     "frontend",
@@ -15,5 +16,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/vinnie1234/HomeAssisantANWBFile/issues",
   "requirements": [],
-  "version": "1.6.0"
+  "version": "1.6.1"
 }
